@@ -218,12 +218,14 @@ create policy publicaciones_insercion on public.publicaciones
     and (consentimiento = true or origen = 'importado')
   );
 
--- Cambiar el estado (en proceso / resuelta) es público, igual que en la web
--- actual: los botones aparecen en cada tarjeta. Lo que impide que alguien
--- reescriba el texto o el contacto de una publicación ajena es el GRANT de
--- más abajo, que solo concede la columna `estado`.
+-- Marcar algo como "en proceso" o "resuelta" es exclusivo de coordinación.
+-- Antes era público y se probó en la práctica: una solicitud real desapareció
+-- del tablero por un clic equivocado de un visitante. Quien pide ayuda no
+-- pierde nada con esto, porque tampoco podía editarla; quien la resuelve avisa
+-- a coordinación.
 create policy publicaciones_actualizacion on public.publicaciones
-  for update to anon, authenticated using (true) with check (true);
+  for update to authenticated
+  using (public.es_coordinador()) with check (public.es_coordinador());
 
 -- Borrar es exclusivo de coordinación.
 create policy publicaciones_borrado on public.publicaciones
@@ -294,7 +296,10 @@ grant select (id, tipo, nombre, municipio, sector, cats, descripcion, urgencia,
               imagenes, lat, lng, estado, creado, origen)
                               on public.publicaciones to anon, authenticated;
 grant insert                  on public.publicaciones to anon, authenticated;
-grant update (estado)         on public.publicaciones to anon, authenticated;
+-- Sin `anon` a propósito: cambiar el estado es solo de coordinación. Sigue
+-- limitado a la columna `estado` para que ni un coordinador pueda reescribir
+-- de un tirón el texto o el teléfono de una publicación ajena.
+grant update (estado)         on public.publicaciones to authenticated;
 grant delete                  on public.publicaciones to authenticated;
 
 revoke all on public.puntos from anon, authenticated;

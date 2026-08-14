@@ -228,7 +228,7 @@ export default function App() {
             {solicitudesRecientes.length > 0 ? (
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 {solicitudesRecientes.map((s) => (
-                  <Tarjeta key={s.id} item={s} compatibles={0} onEstado={cambiarEstado} />
+                  <Tarjeta key={s.id} item={s} compatibles={0} />
                 ))}
               </div>
             ) : (

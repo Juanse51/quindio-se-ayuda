@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Phone, MapPin, Clock, User, HandHeart, ChevronRight, Check, Trash2, MessageCircle, ShieldCheck, LoaderCircle } from "lucide-react";
+import { Phone, MapPin, Clock, User, HandHeart, ChevronRight, Check, Trash2, MessageCircle, ShieldCheck, LoaderCircle, RotateCcw } from "lucide-react";
 import { ACENTO, URGENCIAS, ESTADOS, soloDigitos, hace } from "../lib/data.js";
 import { Chip, CatChip, Galeria } from "./ui.jsx";
 
-export default function Tarjeta({ item, compatibles, onEstado, onVerCompatibles, onEliminar, onPedirContacto }) {
+export default function Tarjeta({ item, compatibles, onEstado, onVerCompatibles, onEliminar, onPedirContacto, puedeModerar }) {
   const [verContacto, setVerContacto] = useState(false);
   // Las ofertas llegan sin teléfono: la vista pública lo deja nulo a propósito.
   // Coordinación lo pide aparte y se guarda aquí solo mientras dura la sesión.
@@ -85,9 +85,16 @@ export default function Tarjeta({ item, compatibles, onEstado, onVerCompatibles,
           </span>
         )}
         {errorContacto && <span className="text-xs font-medium text-red-600">{errorContacto}</span>}
+        {/* Cambiar el estado es solo de coordinación: un clic equivocado de un
+            visitante borra del tablero la necesidad de otra persona. */}
         <div className="ml-auto flex gap-1">
-          {item.estado !== "en_proceso" && <button onClick={() => onEstado(item, "en_proceso")} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">En proceso</button>}
-          {item.estado !== "resuelta" && <button onClick={() => onEstado(item, "resuelta")} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50"><Check size={13} /> Resuelta</button>}
+          {puedeModerar && (
+            <>
+              {item.estado !== "abierta" && <button onClick={() => onEstado(item, "abierta")} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50"><RotateCcw size={13} /> Reabrir</button>}
+              {item.estado !== "en_proceso" && <button onClick={() => onEstado(item, "en_proceso")} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">En proceso</button>}
+              {item.estado !== "resuelta" && <button onClick={() => onEstado(item, "resuelta")} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50"><Check size={13} /> Resuelta</button>}
+            </>
+          )}
           {onEliminar && <button onClick={() => onEliminar(item)} className="rounded-lg px-2 py-1.5 text-xs text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={13} /></button>}
         </div>
       </div>

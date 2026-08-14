@@ -40,8 +40,9 @@ que escriben en una sola base de datos.
 1. El equipo NO opera puntos de acopio: solo informa dónde hay y quién recoge
    (el Directorio es informativo, no un inventario propio).
 2. No hay heridos ni personas bajo escombros: el enfoque no es rescate.
-3. Ya existe mucha data de solicitudes/ofrecimientos: la plataforma debe poder
-   importarla (ver panel de coordinación → importación CSV).
+3. El equipo decidió llenar todo a mano: por ahora NO se va a importar ningún
+   CSV. El importador del panel sigue disponible por si cambia, pero no es el
+   camino previsto y no hay que optimizar para él.
 
 ## Estado actual — FASE 2 completa, FASE 3 parcial
 
@@ -218,10 +219,12 @@ Sin `.env` arranca igual, en modo local. Ver README.md.
 - ~~Desplegar.~~ Hecho: Vercel + dominio propio.
 
 **Pendientes conocidos de la Fase 2**
-- Cualquier visitante puede marcar una publicación ajena como resuelta. Se
-  heredó de la Fase 1 y hoy es una decisión de producto, no un descuido: si se
-  vuelve un problema, el arreglo es quitar el permiso `update (estado)` de
-  `anon` y dejar ese cambio solo en manos de coordinación.
+- ~~Cualquier visitante puede marcar una publicación ajena como resuelta.~~
+  Corregido: pasó en la práctica —una solicitud real desapareció del tablero
+  por un clic equivocado— y ahora cambiar el estado es solo de coordinación,
+  tanto en la interfaz como en la base. El panel tiene "Reabrir" para deshacer.
+  En `arriendos` el cambio de estado sigue siendo público: ahí lo marca el
+  propio dueño y el daño de un error es menor.
 - Los contactos viajan al navegador junto con cada publicación. Para exponerlos
   solo bajo demanda haría falta una vista sin la columna `contacto` más una
   función que la entregue de a una.

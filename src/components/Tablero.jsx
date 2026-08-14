@@ -68,6 +68,7 @@ export default function Tablero({ solicitudes, ofertas, onEstado, onRefrescar, c
             onEstado={onEstado}
             onEliminar={modo === "coord" ? onEliminar : null}
             onPedirContacto={modo === "coord" ? onPedirContacto : null}
+            puedeModerar={modo === "coord"}
             onVerCompatibles={() => { setPestana("oferta"); setFMun(it.municipio); setFCat(""); }} />
         ))}
       </div>

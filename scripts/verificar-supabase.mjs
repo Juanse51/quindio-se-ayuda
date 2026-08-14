@@ -210,17 +210,18 @@ titulo("3. Permisos de un visitante anónimo");
 const ID_INEXISTENTE = "__verificacion_sin_efecto__";
 let permisosMal = false;
 
-// Debe PODER cambiar el estado (los botones del tablero son públicos).
+// NO debe poder marcar nada como resuelto: eso es solo de coordinación.
 {
   const { error } = await supabase
     .from("publicaciones")
     .update({ estado: "resuelta" })
     .eq("id", ID_INEXISTENTE);
   if (error) {
-    mal(`No puede marcar como resuelta, pero debería: ${error.message}`);
-    permisosMal = true;
+    ok("No puede marcar publicaciones como resueltas");
   } else {
-    ok("Puede cambiar el estado de una publicación");
+    mal("PUEDE marcar publicaciones como resueltas. Eso está mal.");
+    aviso("Revisa la política publicaciones_actualizacion y el GRANT UPDATE (estado).");
+    permisosMal = true;
   }
 }
 
