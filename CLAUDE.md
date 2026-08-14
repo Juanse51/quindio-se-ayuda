@@ -47,7 +47,8 @@ que escriben en una sola base de datos.
 
 Web funcional con:
 - **M1** Pedir / ofrecer ayuda + tablero con filtros y emparejamiento por
-  cercanía y categoría. Cada publicación admite **foto** y **ubicación**.
+  cercanía y categoría. Cada publicación admite **fotos** y **ubicación**.
+  El inicio muestra las solicitudes abiertas más recientes.
 - **M2** Directorio informativo de acopios / albergues / colectivos.
 - **M3 (básico)** Asesoría: guía consultable con contenido base editable.
 - **M4 (vivienda)** Arriendos: casas y apartamentos disponibles en todo el
@@ -122,13 +123,15 @@ src/
     auth.js             Sesión de coordinación (Supabase Auth | clave local)
     imagenes.js         Comprime y sube fotos (bucket | data URL en modo local)
   components/
-    ui.jsx              Chip, CatChip, Campo, SelectorImagen, SelectorUbicacion
+    ui.jsx              Chip, Campo, Galeria, SelectorImagenes,
+                        SelectorUbicacion, AlAparecer
     Formulario.jsx      Pedir / ofrecer
     Tarjeta.jsx         Tarjeta de una publicación
     Tablero.jsx         Lista con filtros + emparejamiento
     Directorio.jsx      M2
     Asesoria.jsx        M3 básico
     Mapa.jsx            Mapa del Quindío (Leaflet). Se carga con React.lazy
+    SelectorMapa.jsx    Elegir un punto a mano. También bajo demanda
     Arriendos.jsx       M4 vivienda: listado con filtros (reusado en el panel)
     FormArriendo.jsx    Publicar una vivienda
     PanelCoord.jsx      Panel de coordinación (incluye editores)
