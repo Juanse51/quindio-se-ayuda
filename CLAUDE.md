@@ -16,8 +16,12 @@ que escriben en una sola base de datos.
   permanente.
 - **El bot de WhatsApp (fase futura) responde solo con contenido curado**, no
   genera información libre.
-- **Privacidad:** los contactos no se exponen sin necesidad; lo sensible se
-  modera antes de publicarse.
+- **Privacidad:** los contactos no se exponen sin necesidad.
+- **La moderación es posterior, por decisión de producto.** Lo que alguien
+  publica queda visible de inmediato; coordinación borra después si hace falta.
+  Se evaluó la aprobación previa y se descartó: en emergencia, un tablero que
+  tarda horas en mostrar lo publicado se lee como una plataforma que no sirve.
+  No implementar cola de aprobación sin acordarlo con el equipo.
 
 ## Contexto que condiciona el diseño
 
