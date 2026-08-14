@@ -21,6 +21,10 @@ const MAX_BYTES = 3 * 1024 * 1024; // igual que el límite del bucket
 
 export const TIPOS_ACEPTADOS = "image/jpeg,image/png,image/webp";
 
+// Tope por publicación. La base admite hasta 6; aquí se queda corto a
+// propósito, porque cada foto es una subida más desde un celular con mala señal.
+export const MAX_FOTOS = 4;
+
 // createImageBitmap respeta la orientación EXIF; sin eso, las fotos tomadas en
 // vertical con el celular salen acostadas.
 const cargarImagen = async (file) => {
@@ -71,8 +75,8 @@ const aDataURL = (blob) =>
     lector.readAsDataURL(blob);
   });
 
-// Devuelve lo que hay que guardar en la columna `imagen`, o null.
-export async function subirImagen(file) {
+// Devuelve lo que hay que guardar por cada foto, o null.
+async function subirUna(file) {
   if (!file) return null;
   if (!file.type?.startsWith("image/")) {
     throw new Error("Ese archivo no es una imagen.");
@@ -96,6 +100,19 @@ export async function subirImagen(file) {
     throw new Error("No se pudo subir la imagen. Revisa tu conexión.");
   }
   return nombre;
+}
+
+// Sube las fotos de una publicación y devuelve el arreglo para la columna
+// `imagenes`. De a una y no en paralelo: son celulares con poca subida, y
+// además así el formulario puede decir por cuál va.
+export async function subirImagenes(archivos, alAvanzar) {
+  if (!archivos?.length) return [];
+  const nombres = [];
+  for (let i = 0; i < archivos.length; i++) {
+    alAvanzar?.(i + 1, archivos.length);
+    nombres.push(await subirUna(archivos[i]));
+  }
+  return nombres;
 }
 
 // Traduce lo guardado a una URL mostrable. Acepta los tres formatos que pueden

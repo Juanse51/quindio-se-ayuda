@@ -5,8 +5,7 @@ import {
 import {
   ARRIENDO_TIPOS, ESTADOS_ARRIENDO, MUNICIPIOS, precioCOP, soloDigitos, hace,
 } from "../lib/data.js";
-import { urlImagen } from "../lib/imagenes.js";
-import { Chip } from "./ui.jsx";
+import { Chip, Galeria } from "./ui.jsx";
 
 function TarjetaArriendo({ item, onEstado, onEliminar }) {
   const [verContacto, setVerContacto] = useState(false);
@@ -15,14 +14,11 @@ function TarjetaArriendo({ item, onEstado, onEliminar }) {
 
   return (
     <div className={`overflow-hidden rounded-xl border bg-white shadow-sm ${arrendado ? "border-slate-200 opacity-70" : "border-slate-200"}`}>
-      {item.imagen && (
-        <img
-          src={urlImagen(item.imagen)}
-          alt={`Foto de ${tipo.toLowerCase()} en ${item.municipio}`}
-          loading="lazy"
-          className="h-44 w-full object-cover"
-        />
-      )}
+      <Galeria
+        imagenes={item.imagenes}
+        alt={`Foto de ${tipo.toLowerCase()} en ${item.municipio}`}
+        className={item.imagenes?.length > 1 ? "p-1.5 pb-0" : ""}
+      />
 
       <div className="p-4">
         <div className="flex items-start justify-between gap-2">

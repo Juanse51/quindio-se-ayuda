@@ -162,12 +162,22 @@ if (errRpc) {
 // Columnas de la Fase 3. Una base creada antes no las tiene hasta re-ejecutar
 // el esquema, y sin ellas fallan el mapa y las fotos.
 {
-  const { error } = await supabase.from("publicaciones").select("imagen,lat,lng").limit(1);
+  const { error } = await supabase.from("publicaciones").select("imagenes,lat,lng").limit(1);
   if (error) {
-    mal("Faltan las columnas imagen/lat/lng en publicaciones");
+    mal("Faltan las columnas imagenes/lat/lng en publicaciones");
     faltanTablas = true;
   } else {
-    ok("Columnas de foto y ubicación presentes");
+    ok("Columnas de fotos y ubicación presentes");
+  }
+}
+
+{
+  const { error } = await supabase.from("arriendos").select("imagenes").limit(1);
+  if (error) {
+    mal("Falta la columna imagenes en arriendos");
+    faltanTablas = true;
+  } else {
+    ok("Columna de fotos en arriendos presente");
   }
 }
 

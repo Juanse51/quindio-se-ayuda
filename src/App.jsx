@@ -11,6 +11,7 @@ import Arriendos from "./components/Arriendos.jsx";
 import FormArriendo from "./components/FormArriendo.jsx";
 import PanelCoord from "./components/PanelCoord.jsx";
 import Login from "./components/Login.jsx";
+import Tarjeta from "./components/Tarjeta.jsx";
 import { AlAparecer } from "./components/ui.jsx";
 
 // Leaflet y sus estilos pesan bastante y la mayoría de visitas no abren el
@@ -138,6 +139,9 @@ export default function App() {
     setView("inicio");
   };
 
+  // `solicitudes` ya viene de la más nueva a la más vieja.
+  const solicitudesRecientes = solicitudes.filter((s) => s.estado === "abierta").slice(0, 6);
+
   const nav = [
     ["tablero", "Tablero"], ["mapa", "Mapa"], ["directorio", "Directorio"],
     ["arriendos", "Arriendos"], ["asesoria", "Asesoría"],
@@ -206,6 +210,33 @@ export default function App() {
             <span><strong className="text-slate-800">{puntos.length}</strong> puntos en el directorio</span>
             <span><strong className="text-slate-800">{arriendos.filter((a) => a.estado === "disponible").length}</strong> viviendas en arriendo</span>
           </div>
+
+          <section className="mt-10">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight text-slate-900">Quién está pidiendo ayuda ahora</h2>
+                <p className="mt-1 text-sm text-slate-500">Las solicitudes más recientes. Si puedes con alguna, escríbele directo.</p>
+              </div>
+              <button
+                onClick={() => { setFiltroInicial(null); setView("tablero"); }}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-white"
+              >
+                Ver todas
+              </button>
+            </div>
+
+            {solicitudesRecientes.length > 0 ? (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {solicitudesRecientes.map((s) => (
+                  <Tarjeta key={s.id} item={s} compatibles={0} onEstado={cambiarEstado} />
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
+                Todavía no hay solicitudes abiertas. Cuando alguien publique, aparecerá aquí.
+              </p>
+            )}
+          </section>
 
           <section className="mt-10">
             <div className="flex flex-wrap items-end justify-between gap-2">

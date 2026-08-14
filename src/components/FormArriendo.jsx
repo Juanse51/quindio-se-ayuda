@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
 import { ARRIENDO_TIPOS, MUNICIPIOS, inputCls, uid } from "../lib/data.js";
-import { subirImagen } from "../lib/imagenes.js";
-import { Campo, SelectorImagen } from "./ui.jsx";
+import { subirImagenes } from "../lib/imagenes.js";
+import { Campo, SelectorImagenes } from "./ui.jsx";
 
 const VACIO = {
   tipo: "apartamento", nombre: "", municipio: "", sector: "",
@@ -12,7 +12,8 @@ const VACIO = {
 
 export default function FormArriendo({ onEnviar, onCancelar }) {
   const [f, setF] = useState(VACIO);
-  const [foto, setFoto] = useState(null);
+  const [fotos, setFotos] = useState([]);
+  const [progreso, setProgreso] = useState("");
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
@@ -25,7 +26,10 @@ export default function FormArriendo({ onEnviar, onCancelar }) {
     setError("");
     setEnviando(true);
     try {
-      const imagen = await subirImagen(foto);
+      const imagenes = await subirImagenes(fotos, (i, total) =>
+        setProgreso(total > 1 ? `Subiendo foto ${i} de ${total}…` : "Subiendo la foto…")
+      );
+      setProgreso("");
       // El precio se escribe con puntos y comas; a la base va solo el número.
       const precio = parseInt(f.precio.replace(/\D/g, ""), 10);
       await onEnviar({
@@ -35,11 +39,12 @@ export default function FormArriendo({ onEnviar, onCancelar }) {
         banos: parseInt(f.banos, 10) || 0,
         precio: Number.isFinite(precio) ? precio : null,
         amoblado: f.amoblado, descripcion: f.descripcion.trim(),
-        contacto: f.contacto.trim(), imagen,
+        contacto: f.contacto.trim(), imagenes,
         estado: "disponible", creado: Date.now(), origen: "web",
       });
     } catch (e) {
       setError(e.message);
+      setProgreso("");
       setEnviando(false);
     }
   };
@@ -101,8 +106,8 @@ export default function FormArriendo({ onEnviar, onCancelar }) {
           />
         </Campo>
 
-        <Campo label="Foto (opcional)" hint="Una foto de la vivienda ayuda muchísimo a que la contacten.">
-          <SelectorImagen archivo={foto} onArchivo={setFoto} disabled={enviando} />
+        <Campo label="Fotos (opcional)" hint="Las fotos de la vivienda ayudan muchísimo a que la contacten.">
+          <SelectorImagenes archivos={fotos} onArchivos={setFotos} disabled={enviando} />
         </Campo>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -121,7 +126,7 @@ export default function FormArriendo({ onEnviar, onCancelar }) {
           disabled={enviando}
           className="w-full rounded-lg bg-violet-600 py-3 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
         >
-          {enviando ? (foto ? "Subiendo la foto…" : "Publicando…") : "Publicar vivienda"}
+          {enviando ? (progreso || "Publicando…") : "Publicar vivienda"}
         </button>
       </div>
     </div>

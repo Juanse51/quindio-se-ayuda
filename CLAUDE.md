@@ -77,8 +77,13 @@ Falta de la Fase 2: el bot de WhatsApp.
   Quindío y solo al pulsar el botón: su política de uso pide no más de una
   consulta por segundo, así que no debe dispararse mientras se escribe.
 - **Las fotos se comprimen en el navegador antes de subirse** (máx. 1280 px,
-  JPEG 0.72). No es cosmético: esto se usa desde celulares con mala señal y una
-  foto de cámara pesa varios MB. Ver `src/lib/imagenes.js`.
+  JPEG 0.72) y se suben de a una, no en paralelo, para que el formulario pueda
+  decir por cuál va. No es cosmético: esto se usa desde celulares con mala señal
+  y una foto de cámara pesa varios MB. Ver `src/lib/imagenes.js`.
+- **El buscador de direcciones es Nominatim (OpenStreetMap), no Google.** Su
+  cobertura en el Quindío es pobre para direcciones informales, así que el
+  camino principal del selector es otro: elegir municipio, tocar el mapa y
+  arrastrar el punto. La búsqueda por texto es un extra, no el mecanismo.
 - **El mapa se carga bajo demanda** (`React.lazy`). Leaflet añade ~47 kB gzip y
   la mayoría de visitas no abren el mapa.
 
@@ -148,21 +153,22 @@ uno con `store.contactoDe(id)`, que llama a `contacto_privado()` y es el
 servidor quien decide si responde.
 
 - Publicación (solicitud/oferta): `{ id, tipo, nombre, municipio, sector, cats[],
-  descripcion, urgencia, contacto, imagen, lat, lng, estado, creado, origen }`
+  descripcion, urgencia, contacto, imagenes[], lat, lng, estado, creado, origen }`
 - Punto de directorio: `{ id, nombre, tipoPunto, municipio, direccion, recibe,
   horario, contacto, verificado, creado }`
 - Asesoría: `{ id, cat, titulo, cuerpo, creado }`
 - Arriendo: `{ id, tipo, nombre, municipio, sector, habitaciones, banos, precio,
-  amoblado, descripcion, contacto, imagen, estado, creado, origen }`
+  amoblado, descripcion, contacto, imagenes[], estado, creado, origen }`
 
 `id` lo genera el cliente con `uid()` y `creado` es `Date.now()` (bigint), no
 timestamp de Postgres. En la base, `tipoPunto` se llama `tipo_punto`; la
 traducción vive en `storage.js`.
 
-`imagen` guarda el **nombre del archivo** dentro del bucket `imagenes`, no una
-URL; `urlImagen()` la construye al mostrarla. En modo local guarda un data URL,
-y esa misma función lo devuelve tal cual. `lat`/`lng` son nulos cuando la
-persona no compartió su ubicación, que es lo normal.
+`imagenes` es un arreglo con los **nombres de archivo** dentro del bucket
+`imagenes`, no URLs; `urlImagen()` las construye al mostrarlas. En modo local
+guarda data URLs, y esa misma función los devuelve tal cual. El tope son 4 fotos
+en la interfaz y 6 en la base. `lat`/`lng` son nulos cuando la persona no
+compartió su ubicación, que es lo normal.
 
 Los estados dependen de la colección: `abierta | en_proceso | resuelta` para
 publicaciones, `disponible | arrendado` para arriendos.

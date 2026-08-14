@@ -28,7 +28,8 @@ create table if not exists public.publicaciones (
   urgencia    text   not null default 'media'   check (urgencia in ('alta', 'media', 'baja')),
   contacto    text   not null default ''        check (char_length(contacto) <= 120),
   estado      text   not null default 'abierta' check (estado in ('abierta', 'en_proceso', 'resuelta')),
-  imagen      text,              -- ruta dentro del bucket `imagenes`, o null
+  -- Nombres de archivo dentro del bucket `imagenes`. Vacío si no subió ninguna.
+  imagenes    text[] not null default '{}' check (cardinality(imagenes) <= 6),
   lat         double precision,  -- ubicación exacta, opcional
   lng         double precision,
   -- Autorización explícita para tratar los datos personales de la publicación.
@@ -76,7 +77,7 @@ create table if not exists public.arriendos (
   amoblado     boolean  not null default false,
   descripcion  text     not null default '' check (char_length(descripcion) <= 2000),
   contacto     text     not null default '' check (char_length(contacto) <= 120),
-  imagen       text,
+  imagenes     text[]   not null default '{}' check (cardinality(imagenes) <= 6),
   estado       text     not null default 'disponible'
                         check (estado in ('disponible', 'arrendado')),
   creado       bigint   not null,
@@ -98,10 +99,35 @@ create table if not exists public.coordinadores (
 -- columnas nuevas se agregan aparte. Si la base es nueva, esto no hace nada.
 -- ---------------------------------------------------------------------------
 
-alter table public.publicaciones add column if not exists imagen text;
+-- La vista depende de las columnas de abajo, así que estorba para migrarlas.
+-- Se recrea más adelante, en la sección 5a.
+drop view if exists public.publicaciones_publicas;
+
 alter table public.publicaciones add column if not exists lat double precision;
 alter table public.publicaciones add column if not exists lng double precision;
 alter table public.publicaciones add column if not exists consentimiento boolean not null default false;
+alter table public.publicaciones add column if not exists imagenes text[] not null default '{}';
+alter table public.arriendos    add column if not exists imagenes text[] not null default '{}';
+
+-- Paso de una foto por publicación a varias. Se conserva la que hubiera y
+-- después se elimina la columna vieja. En una base nueva no hace nada.
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['publicaciones', 'arriendos'] loop
+    if exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = t and column_name = 'imagen'
+    ) then
+      execute format(
+        'update public.%I set imagenes = array[imagen]
+          where imagen is not null and cardinality(imagenes) = 0', t
+      );
+      execute format('alter table public.%I drop column imagen', t);
+    end if;
+  end loop;
+end $$;
 
 -- Postgres no tiene `add constraint if not exists`, de ahí el rodeo.
 do $$
@@ -265,7 +291,7 @@ create policy coordinadores_propia_fila on public.coordinadores
 -- (que la muestra solo en las solicitudes) o por la función para coordinación.
 revoke all on public.publicaciones from anon, authenticated;
 grant select (id, tipo, nombre, municipio, sector, cats, descripcion, urgencia,
-              imagen, lat, lng, estado, creado, origen)
+              imagenes, lat, lng, estado, creado, origen)
                               on public.publicaciones to anon, authenticated;
 grant insert                  on public.publicaciones to anon, authenticated;
 grant update (estado)         on public.publicaciones to anon, authenticated;
@@ -307,11 +333,14 @@ grant select on public.coordinadores to authenticated;
 -- que permite filtrar el dato en vez de exponerlo entero.
 -- ---------------------------------------------------------------------------
 
-create or replace view public.publicaciones_publicas as
+-- Se recrea desde cero en vez de `create or replace`: esa forma no admite
+-- cambios en el tipo de una columna, y `imagen` pasó a ser el arreglo
+-- `imagenes`. La vista ya se eliminó en la sección 1b.
+create view public.publicaciones_publicas as
 select
   id, tipo, nombre, municipio, sector, cats, descripcion, urgencia,
   case when tipo = 'solicitud' then contacto else null end as contacto,
-  imagen, lat, lng, estado, creado, origen
+  imagenes, lat, lng, estado, creado, origen
 from public.publicaciones;
 
 revoke all on public.publicaciones_publicas from anon, authenticated;

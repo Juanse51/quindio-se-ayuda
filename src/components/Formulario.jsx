@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { X, AlertTriangle } from "lucide-react";
 import { CATEGORIAS, URGENCIAS, MUNICIPIOS, ACENTO, inputCls, uid } from "../lib/data.js";
-import { subirImagen } from "../lib/imagenes.js";
-import { Campo, SelectorImagen, SelectorUbicacion } from "./ui.jsx";
+import { subirImagenes } from "../lib/imagenes.js";
+import { Campo, SelectorImagenes, SelectorUbicacion } from "./ui.jsx";
 
 export default function Formulario({ tipo, onEnviar, onCancelar }) {
   const esPedir = tipo === "solicitud";
@@ -11,7 +11,8 @@ export default function Formulario({ tipo, onEnviar, onCancelar }) {
   const [cats, setCats] = useState([]);
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [foto, setFoto] = useState(null);
+  const [fotos, setFotos] = useState([]);
+  const [progreso, setProgreso] = useState("");
   const [coords, setCoords] = useState(null);
   const [autoriza, setAutoriza] = useState(false);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
@@ -27,19 +28,23 @@ export default function Formulario({ tipo, onEnviar, onCancelar }) {
     setError("");
     setEnviando(true);
     try {
-      // La foto se sube primero: si falla, no queremos una publicación a medias.
-      const imagen = await subirImagen(foto);
+      // Las fotos van primero: si fallan, no queremos una publicación a medias.
+      const imagenes = await subirImagenes(fotos, (i, total) =>
+        setProgreso(total > 1 ? `Subiendo foto ${i} de ${total}…` : "Subiendo la foto…")
+      );
+      setProgreso("");
       await onEnviar({
         id: uid(), tipo, nombre: f.nombre.trim() || "Anónimo", municipio: f.municipio,
         sector: f.sector.trim(), cats, descripcion: f.descripcion.trim(),
         urgencia: esPedir ? f.urgencia : "media", contacto: f.contacto.trim(),
-        imagen, lat: coords?.lat ?? null, lng: coords?.lng ?? null,
+        imagenes, lat: coords?.lat ?? null, lng: coords?.lng ?? null,
         consentimiento: true,
         estado: "abierta", creado: Date.now(), origen: "web",
       });
     } catch (e) {
       // No se guardó: se conserva lo escrito para poder reintentar.
       setError(e.message);
+      setProgreso("");
       setEnviando(false);
     }
   };
@@ -77,7 +82,7 @@ export default function Formulario({ tipo, onEnviar, onCancelar }) {
           label="Ubicación en el mapa (opcional)"
           hint="Aparecerá como un punto en el mapa público. Puedes usar tu ubicación actual, o marcarla a mano si estás publicando desde otro lado o registrando el caso de otra persona."
         >
-          <SelectorUbicacion coords={coords} onCoords={setCoords} disabled={enviando} />
+          <SelectorUbicacion coords={coords} onCoords={setCoords} disabled={enviando} municipio={f.municipio} />
         </Campo>
 
         <Campo label={esPedir ? "¿Qué necesitas?" : "¿Con qué puedes ayudar?"} req>
@@ -102,10 +107,10 @@ export default function Formulario({ tipo, onEnviar, onCancelar }) {
         </Campo>
 
         <Campo
-          label="Foto (opcional)"
-          hint={esPedir ? "Una foto ayuda a entender la situación. No subas fotos de personas sin su permiso." : "Por ejemplo, lo que tienes disponible para entregar."}
+          label="Fotos (opcional)"
+          hint={esPedir ? "Ayudan a entender la situación. No subas fotos de personas sin su permiso." : "Por ejemplo, lo que tienes disponible para entregar."}
         >
-          <SelectorImagen archivo={foto} onArchivo={setFoto} disabled={enviando} />
+          <SelectorImagenes archivos={fotos} onArchivos={setFotos} disabled={enviando} />
         </Campo>
 
         {esPedir && (
@@ -162,7 +167,7 @@ export default function Formulario({ tipo, onEnviar, onCancelar }) {
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
 
         <button onClick={enviar} disabled={enviando} className={`w-full rounded-lg py-3 text-sm font-semibold text-white transition disabled:opacity-60 ${a.solid}`}>
-          {enviando ? (foto ? "Subiendo la foto…" : "Publicando…") : esPedir ? "Publicar solicitud" : "Publicar ofrecimiento"}
+          {enviando ? (progreso || "Publicando…") : esPedir ? "Publicar solicitud" : "Publicar ofrecimiento"}
         </button>
       </div>
     </div>

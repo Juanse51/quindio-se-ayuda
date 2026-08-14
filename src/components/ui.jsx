@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { Camera, X, MapPin, LoaderCircle, Check, Map } from "lucide-react";
 import { CATEGORIAS } from "../lib/data.js";
-import { TIPOS_ACEPTADOS } from "../lib/imagenes.js";
+import { TIPOS_ACEPTADOS, MAX_FOTOS, urlImagen } from "../lib/imagenes.js";
 
 // Arrastra Leaflet consigo, así que solo se descarga si alguien abre el mapa.
 const SelectorMapa = React.lazy(() => import("./SelectorMapa.jsx"));
@@ -22,6 +22,31 @@ export function CatChip({ cat }) {
     <Chip className="bg-slate-50 text-slate-700 border-slate-200">
       <Icon size={12} /> {c.label}
     </Chip>
+  );
+}
+
+// Las fotos de una publicación. Abrir en pestaña nueva hace las veces de
+// "ver en grande" sin cargar un visor completo.
+export function Galeria({ imagenes, alt = "Foto de la publicación", className = "" }) {
+  const urls = (imagenes || []).map(urlImagen).filter(Boolean);
+  if (urls.length === 0) return null;
+
+  if (urls.length === 1) {
+    return (
+      <a href={urls[0]} target="_blank" rel="noreferrer" className={`block ${className}`}>
+        <img src={urls[0]} alt={alt} loading="lazy" className="max-h-56 w-full rounded-lg border border-slate-200 object-cover" />
+      </a>
+    );
+  }
+
+  return (
+    <div className={`grid grid-cols-2 gap-1.5 ${className}`}>
+      {urls.map((u, i) => (
+        <a key={u} href={u} target="_blank" rel="noreferrer">
+          <img src={u} alt={`${alt} ${i + 1}`} loading="lazy" className="h-28 w-full rounded-lg border border-slate-200 object-cover" />
+        </a>
+      ))}
+    </div>
   );
 }
 
@@ -70,58 +95,73 @@ export function Campo({ label, children, hint, req }) {
   );
 }
 
-// Selector de foto con vista previa. La compresión ocurre al enviar, no aquí,
-// para que elegir la foto sea instantáneo.
-export function SelectorImagen({ archivo, onArchivo, disabled }) {
-  const [vista, setVista] = useState(null);
+// Varias fotos con vista previa. La compresión ocurre al enviar, no aquí, para
+// que elegirlas sea instantáneo aunque sean pesadas.
+export function SelectorImagenes({ archivos, onArchivos, disabled }) {
+  const [vistas, setVistas] = useState([]);
 
   useEffect(() => {
-    if (!archivo) {
-      setVista(null);
-      return;
-    }
-    const url = URL.createObjectURL(archivo);
-    setVista(url);
-    return () => URL.revokeObjectURL(url);
-  }, [archivo]);
+    const urls = archivos.map((a) => URL.createObjectURL(a));
+    setVistas(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [archivos]);
 
-  if (vista) {
-    return (
-      <div className="relative inline-block">
-        <img src={vista} alt="Vista previa" className="h-32 w-32 rounded-lg border border-slate-200 object-cover" />
-        <button
-          type="button"
-          onClick={() => onArchivo(null)}
-          disabled={disabled}
-          className="absolute -right-2 -top-2 rounded-full border border-slate-300 bg-white p-1 text-slate-500 shadow-sm hover:text-red-600 disabled:opacity-60"
-          aria-label="Quitar la foto"
-        >
-          <X size={14} />
-        </button>
-      </div>
-    );
-  }
+  const agregar = (lista) => {
+    const nuevas = Array.from(lista || []).filter((f) => f.type?.startsWith("image/"));
+    onArchivos([...archivos, ...nuevas].slice(0, MAX_FOTOS));
+  };
+
+  const quitar = (i) => onArchivos(archivos.filter((_, j) => j !== i));
+  const lleno = archivos.length >= MAX_FOTOS;
 
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-600 hover:border-slate-400 hover:bg-slate-50">
-      <Camera size={16} className="text-slate-400" />
-      Agregar una foto
-      <input
-        type="file"
-        accept={TIPOS_ACEPTADOS}
-        capture="environment"
-        disabled={disabled}
-        onChange={(e) => onArchivo(e.target.files?.[0] || null)}
-        className="hidden"
-      />
-    </label>
+    <div>
+      <div className="flex flex-wrap gap-2">
+        {vistas.map((url, i) => (
+          <div key={url} className="relative">
+            <img src={url} alt={`Foto ${i + 1}`} className="h-24 w-24 rounded-lg border border-slate-200 object-cover" />
+            <button
+              type="button"
+              onClick={() => quitar(i)}
+              disabled={disabled}
+              className="absolute -right-2 -top-2 rounded-full border border-slate-300 bg-white p-1 text-slate-500 shadow-sm hover:text-red-600 disabled:opacity-60"
+              aria-label={`Quitar la foto ${i + 1}`}
+            >
+              <X size={13} />
+            </button>
+          </div>
+        ))}
+
+        {!lleno && (
+          <label className="flex h-24 w-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 text-xs text-slate-500 hover:border-slate-400 hover:bg-slate-50">
+            <Camera size={18} className="text-slate-400" />
+            {archivos.length === 0 ? "Agregar foto" : "Otra más"}
+            <input
+              type="file"
+              accept={TIPOS_ACEPTADOS}
+              multiple
+              disabled={disabled}
+              onChange={(e) => {
+                agregar(e.target.files);
+                e.target.value = ""; // permite volver a elegir el mismo archivo
+              }}
+              className="hidden"
+            />
+          </label>
+        )}
+      </div>
+
+      <p className="mt-1.5 text-xs text-slate-400">
+        {lleno ? `Máximo ${MAX_FOTOS} fotos.` : `Puedes agregar hasta ${MAX_FOTOS}.`}
+      </p>
+    </div>
   );
 }
 
 // Dos caminos para lo mismo: el GPS del aparato, o marcar el punto a mano en
 // un mapa. El segundo no es un repuesto del primero: mucha gente publica desde
 // otro lado, y hay quien registra la solicitud de un vecino.
-export function SelectorUbicacion({ coords, onCoords, disabled }) {
+export function SelectorUbicacion({ coords, onCoords, disabled, municipio }) {
   const [buscando, setBuscando] = useState(false);
   const [error, setError] = useState("");
   const [abrirMapa, setAbrirMapa] = useState(false);
@@ -153,6 +193,7 @@ export function SelectorUbicacion({ coords, onCoords, disabled }) {
     <Suspense fallback={null}>
       <SelectorMapa
         inicial={coords}
+        municipio={municipio}
         onConfirmar={(c) => {
           onCoords(c);
           setAbrirMapa(false);
