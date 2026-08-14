@@ -41,7 +41,20 @@ Web funcional con:
 - **Autenticación real del panel**: correo y contraseña + pertenencia a la tabla
   `coordinadores`, verificada también del lado del servidor.
 
+- **En producción** en https://quindioayuda.com (Vercel, desplegado desde
+  GitHub: cada push a `main` reconstruye y publica solo).
+
 Falta de la Fase 2: el bot de WhatsApp.
+
+### Producción
+
+- Repositorio: https://github.com/Juanse51/quindio-se-ayuda
+- Dominio: `quindioayuda.com` (comprado en Hostinger, DNS editado allí; los
+  nameservers siguen siendo los de Hostinger para no tumbar el correo).
+  El apex redirige a `www`, que es el canónico.
+- Las variables `VITE_SUPABASE_*` están configuradas en Vercel. Vite las
+  incrusta **al construir**, no las lee al arrancar: si se cambian, hay que
+  redesplegar, no basta con reiniciar.
 
 ### Los dos modos de ejecución
 
@@ -134,7 +147,7 @@ Sin `.env` arranca igual, en modo local. Ver README.md.
   de conocimiento) escribiendo en la misma base. El esquema ya lo contempla:
   `origen = 'whatsapp'` está reservado para el bot, que debe escribir con la
   `service_role key` desde el servidor —nunca desde el navegador.
-- Desplegar (el hosting necesita las variables `VITE_SUPABASE_*` al construir).
+- ~~Desplegar.~~ Hecho: Vercel + dominio propio.
 
 **Pendientes conocidos de la Fase 2**
 - Cualquier visitante puede marcar una publicación ajena como resuelta. Se
