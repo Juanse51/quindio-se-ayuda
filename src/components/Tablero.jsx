@@ -3,7 +3,7 @@ import { Filter, RefreshCw, Search } from "lucide-react";
 import { CATEGORIAS, MUNICIPIOS } from "../lib/data.js";
 import Tarjeta from "./Tarjeta.jsx";
 
-export default function Tablero({ solicitudes, ofertas, onEstado, onRefrescar, cargando, filtroInicial, modo, onEliminar }) {
+export default function Tablero({ solicitudes, ofertas, onEstado, onRefrescar, cargando, filtroInicial, modo, onEliminar, onPedirContacto }) {
   const [pestana, setPestana] = useState(filtroInicial?.pestana || "solicitud");
   const [fMun, setFMun] = useState(filtroInicial?.municipio || "");
   const [fCat, setFCat] = useState("");
@@ -67,6 +67,7 @@ export default function Tablero({ solicitudes, ofertas, onEstado, onRefrescar, c
             compatibles={it.tipo === "solicitud" ? compatiblesDe(it) : 0}
             onEstado={onEstado}
             onEliminar={modo === "coord" ? onEliminar : null}
+            onPedirContacto={modo === "coord" ? onPedirContacto : null}
             onVerCompatibles={() => { setPestana("oferta"); setFMun(it.municipio); setFCat(""); }} />
         ))}
       </div>

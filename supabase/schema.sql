@@ -31,6 +31,8 @@ create table if not exists public.publicaciones (
   imagen      text,              -- ruta dentro del bucket `imagenes`, o null
   lat         double precision,  -- ubicación exacta, opcional
   lng         double precision,
+  -- Autorización explícita para tratar los datos personales de la publicación.
+  consentimiento boolean not null default false,
   creado      bigint not null,   -- epoch en milisegundos (Date.now())
   origen      text   not null default 'web' check (origen in ('web', 'importado', 'whatsapp'))
 );
@@ -99,6 +101,7 @@ create table if not exists public.coordinadores (
 alter table public.publicaciones add column if not exists imagen text;
 alter table public.publicaciones add column if not exists lat double precision;
 alter table public.publicaciones add column if not exists lng double precision;
+alter table public.publicaciones add column if not exists consentimiento boolean not null default false;
 
 -- Postgres no tiene `add constraint if not exists`, de ahí el rodeo.
 do $$
@@ -180,7 +183,14 @@ create policy publicaciones_lectura on public.publicaciones
 -- llegado por WhatsApp (ese origen lo pondrá el bot con su propia llave).
 create policy publicaciones_insercion on public.publicaciones
   for insert to anon, authenticated
-  with check (estado = 'abierta' and origen in ('web', 'importado'));
+  with check (
+    estado = 'abierta'
+    and origen in ('web', 'importado')
+    -- Sin autorización de datos no se publica. La data que ya existía y entra
+    -- por el importador del panel no pasó por el formulario: ese consentimiento
+    -- lo respalda el equipo que la recogió.
+    and (consentimiento = true or origen = 'importado')
+  );
 
 -- Cambiar el estado (en proceso / resuelta) es público, igual que en la web
 -- actual: los botones aparecen en cada tarjeta. Lo que impide que alguien
@@ -250,8 +260,14 @@ create policy coordinadores_propia_fila on public.coordinadores
 -- reescribir la descripción o el teléfono de una solicitud ajena.
 -- ---------------------------------------------------------------------------
 
+-- Ojo con la lista de columnas: `contacto` NO está. Nadie lee esa columna
+-- directamente desde el navegador; se llega a ella por la vista de más abajo
+-- (que la muestra solo en las solicitudes) o por la función para coordinación.
 revoke all on public.publicaciones from anon, authenticated;
-grant select, insert          on public.publicaciones to anon, authenticated;
+grant select (id, tipo, nombre, municipio, sector, cats, descripcion, urgencia,
+              imagen, lat, lng, estado, creado, origen)
+                              on public.publicaciones to anon, authenticated;
+grant insert                  on public.publicaciones to anon, authenticated;
 grant update (estado)         on public.publicaciones to anon, authenticated;
 grant delete                  on public.publicaciones to authenticated;
 
@@ -270,6 +286,55 @@ grant delete                  on public.arriendos to authenticated;
 
 revoke all on public.coordinadores from anon, authenticated;
 grant select on public.coordinadores to authenticated;
+
+
+-- ---------------------------------------------------------------------------
+-- 5a. Qué contacto es público y cuál no
+--
+-- Regla: el teléfono de quien PIDE ayuda es público —es la única forma de que
+-- alguien lo alcance—. El de quien OFRECE ayuda no: queda guardado para
+-- coordinación, que hace el enlace.
+--
+-- Esto no se puede resolver con permisos por columna, porque son por tabla y
+-- no distinguen filas. La solución son dos caminos distintos al mismo dato:
+--
+--   * la vista de abajo, que el navegador lee y que devuelve `contacto` nulo
+--     en las ofertas;
+--   * la función `contacto_privado()`, que solo responde a coordinación.
+--
+-- La vista corre con los permisos de su dueño (postgres), por eso puede leer
+-- la columna que anon ya no puede leer. Es deliberado: es justo el mecanismo
+-- que permite filtrar el dato en vez de exponerlo entero.
+-- ---------------------------------------------------------------------------
+
+create or replace view public.publicaciones_publicas as
+select
+  id, tipo, nombre, municipio, sector, cats, descripcion, urgencia,
+  case when tipo = 'solicitud' then contacto else null end as contacto,
+  imagen, lat, lng, estado, creado, origen
+from public.publicaciones;
+
+revoke all on public.publicaciones_publicas from anon, authenticated;
+grant select on public.publicaciones_publicas to anon, authenticated;
+
+-- Devuelve el teléfono real de cualquier publicación, pero solo si quien
+-- pregunta es coordinación. Para cualquier otro devuelve nulo.
+create or replace function public.contacto_privado(p_id text)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when public.es_coordinador()
+    then (select p.contacto from public.publicaciones p where p.id = p_id)
+    else null
+  end;
+$$;
+
+revoke all on function public.contacto_privado(text) from public;
+grant execute on function public.contacto_privado(text) to authenticated;
 
 
 -- ---------------------------------------------------------------------------

@@ -22,9 +22,12 @@
 import { supabase, hayBackend } from "./supabase.js";
 
 // Los prefijos de la Fase 1 se conservan como identificador de colección.
+// `vista` es de dónde se LEE y `tabla` a dónde se ESCRIBE. Se separan porque el
+// navegador no tiene permiso de leer la columna `contacto` de publicaciones: la
+// vista se la entrega filtrada (nula en las ofertas). Ver schema.sql, sección 5a.
 const TABLAS = {
-  "sol:": { tabla: "publicaciones", filtro: { tipo: "solicitud" }, upsert: false },
-  "ofr:": { tabla: "publicaciones", filtro: { tipo: "oferta" }, upsert: false },
+  "sol:": { tabla: "publicaciones", vista: "publicaciones_publicas", filtro: { tipo: "solicitud" }, upsert: false },
+  "ofr:": { tabla: "publicaciones", vista: "publicaciones_publicas", filtro: { tipo: "oferta" }, upsert: false },
   "aco:": { tabla: "puntos", filtro: null, upsert: true },
   "gui:": { tabla: "guia", filtro: null, upsert: true },
   "arr:": { tabla: "arriendos", filtro: null, upsert: false },
@@ -65,9 +68,9 @@ const fallo = (accion, error) => {
 
 const remoto = {
   async listar(prefijo) {
-    const { tabla, filtro } = destino(prefijo);
+    const { tabla, vista, filtro } = destino(prefijo);
     let q = supabase
-      .from(tabla)
+      .from(vista || tabla)
       .select("*")
       .order("creado", { ascending: false })
       .limit(LIMITE);
@@ -100,6 +103,14 @@ const remoto = {
     const { error } = await supabase.from(tabla).delete().eq("id", id);
     if (error) throw fallo("eliminar", error);
   },
+
+  // El teléfono de quien ofrece ayuda no viaja con la publicación. Coordinación
+  // lo pide de a uno; a cualquier otro la función le responde nulo.
+  async contactoDe(id) {
+    const { data, error } = await supabase.rpc("contacto_privado", { p_id: id });
+    if (error) throw fallo("consultar el contacto", error);
+    return data || null;
+  },
 };
 
 // --- Implementación localStorage (modo sin backend) -------------------------
@@ -125,7 +136,10 @@ const local = {
     } catch (e) {
       throw fallo("cargar la información", e);
     }
-    return out.filter(Boolean).sort((a, b) => (b.creado || 0) - (a.creado || 0));
+    const orden = out.filter(Boolean).sort((a, b) => (b.creado || 0) - (a.creado || 0));
+    // Imita lo que hace la vista pública en Supabase, para que el modo local no
+    // muestre de más y las diferencias aparezcan recién en producción.
+    return prefijo === "ofr:" ? orden.map((o) => ({ ...o, contacto: null })) : orden;
   },
 
   async guardar(prefijo, item) {
@@ -159,6 +173,15 @@ const local = {
     } catch (e) {
       throw fallo("eliminar", e);
     }
+  },
+
+  // En modo local no hay separación de permisos: el dato está ahí completo.
+  async contactoDe(id) {
+    for (const prefijo of ["ofr:", "sol:"]) {
+      const guardado = localStorage.getItem(clave(prefijo, id));
+      if (guardado) return JSON.parse(guardado).contacto || null;
+    }
+    return null;
   },
 };
 

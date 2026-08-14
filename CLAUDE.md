@@ -19,7 +19,16 @@ que escriben en una sola base de datos.
     que la alarma no correspondía a la situación. No reponerlo sin acordarlo.
 - **El bot de WhatsApp (fase futura) responde solo con contenido curado**, no
   genera información libre.
-- **Privacidad:** los contactos no se exponen sin necesidad.
+- **Privacidad de los contactos.** El teléfono de quien PIDE ayuda es público:
+  sin eso nadie puede alcanzarlo. El de quien OFRECE ayuda no lo es —queda solo
+  para coordinación, que hace el enlace—. Esto está aplicado en la base, no en
+  la interfaz: `anon` no tiene permiso de leer la columna `contacto`, y llega al
+  dato por la vista `publicaciones_publicas`, que lo devuelve nulo en las
+  ofertas. Ver sección 5a de `supabase/schema.sql`.
+- **Nada se publica sin autorización explícita** de tratamiento de datos: el
+  formulario tiene una casilla obligatoria y la política de inserción exige
+  `consentimiento = true` (salvo la data importada por el panel, cuyo respaldo
+  es el equipo que la recogió).
 - **La moderación es posterior, por decisión de producto.** Lo que alguien
   publica queda visible de inmediato; coordinación borra después si hace falta.
   Se evaluó la aprobación previa y se descartó: en emergencia, un tablero que
@@ -61,6 +70,12 @@ Falta de la Fase 2: el bot de WhatsApp.
   no publicar la dirección precisa de alguien vulnerable junto a su teléfono, y
   el equipo eligió precisión. Compartir la ubicación es opcional y el formulario
   dice claramente que el punto queda público.
+- **La ubicación se puede marcar a mano, no solo con el GPS.** Mucha gente
+  publica desde otro lugar, y hay quien registra el caso de un vecino. El
+  selector (`SelectorMapa.jsx`) permite tocar el mapa, arrastrar el punto o
+  buscar una dirección. La búsqueda usa Nominatim de OpenStreetMap, acotada al
+  Quindío y solo al pulsar el botón: su política de uso pide no más de una
+  consulta por segundo, así que no debe dispararse mientras se escribe.
 - **Las fotos se comprimen en el navegador antes de subirse** (máx. 1280 px,
   JPEG 0.72). No es cosmético: esto se usa desde celulares con mala señal y una
   foto de cámara pesa varios MB. Ver `src/lib/imagenes.js`.
@@ -125,6 +140,13 @@ Los prefijos de la Fase 1 se conservan como nombre de colección y el adaptador
 los traduce a tablas: `sol:`/`ofr:` → `publicaciones` (filtrando por `tipo`),
 `aco:` → `puntos`, `gui:` → `guia`, `arr:` → `arriendos`.
 
+**Publicaciones se LEE de la vista `publicaciones_publicas` y se ESCRIBE en la
+tabla `publicaciones`.** No es un capricho: el navegador no tiene permiso sobre
+la columna `contacto`. Por eso `TABLAS` en `storage.js` tiene `vista` y `tabla`
+separadas. El teléfono de una oferta llega nulo; coordinación lo obtiene de a
+uno con `store.contactoDe(id)`, que llama a `contacto_privado()` y es el
+servidor quien decide si responde.
+
 - Publicación (solicitud/oferta): `{ id, tipo, nombre, municipio, sector, cats[],
   descripcion, urgencia, contacto, imagen, lat, lng, estado, creado, origen }`
 - Punto de directorio: `{ id, nombre, tipoPunto, municipio, direccion, recibe,
@@ -152,6 +174,8 @@ listar(prefijo)                       → array, del más nuevo al más viejo
 guardar(prefijo, item | items[])      → crea (acepta lote, lo usa la importación)
 actualizarEstado(prefijo, id, estado) → solo cambia el estado
 eliminar(prefijo, id)                 → borra
+contactoDe(id)                        → teléfono real; el servidor solo responde
+                                        a coordinación
 ```
 
 `actualizarEstado` existe aparte a propósito: quien no está autenticado solo

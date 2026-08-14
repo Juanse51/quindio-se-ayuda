@@ -110,6 +110,8 @@ Para quitar el acceso, basta con borrar su fila de `coordinadores`.
 | Ver tablero, mapa, directorio, arriendos y asesoría | ✅ | ✅ |
 | Publicar solicitud, ofrecimiento o arriendo | ✅ | ✅ |
 | Subir una foto | ✅ | ✅ |
+| Ver el teléfono de quien **pide** ayuda | ✅ | ✅ |
+| Ver el teléfono de quien **ofrece** ayuda | ❌ | ✅ |
 | Marcar "en proceso" / "resuelta" / "arrendado" | ✅ | ✅ |
 | Editar el texto o el contacto de una publicación ajena | ❌ | ❌ |
 | Borrar publicaciones y arriendos | ❌ | ✅ |

@@ -1,14 +1,38 @@
 import React, { useState } from "react";
-import { Phone, MapPin, Clock, User, HandHeart, ChevronRight, Check, Trash2, MessageCircle } from "lucide-react";
+import { Phone, MapPin, Clock, User, HandHeart, ChevronRight, Check, Trash2, MessageCircle, ShieldCheck, LoaderCircle } from "lucide-react";
 import { ACENTO, URGENCIAS, ESTADOS, soloDigitos, hace } from "../lib/data.js";
 import { urlImagen } from "../lib/imagenes.js";
 import { Chip, CatChip } from "./ui.jsx";
 
-export default function Tarjeta({ item, compatibles, onEstado, onVerCompatibles, onEliminar }) {
+export default function Tarjeta({ item, compatibles, onEstado, onVerCompatibles, onEliminar, onPedirContacto }) {
   const [verContacto, setVerContacto] = useState(false);
+  // Las ofertas llegan sin teléfono: la vista pública lo deja nulo a propósito.
+  // Coordinación lo pide aparte y se guarda aquí solo mientras dura la sesión.
+  const [contacto, setContacto] = useState(item.contacto || null);
+  const [pidiendo, setPidiendo] = useState(false);
+  const [errorContacto, setErrorContacto] = useState("");
   const esSol = item.tipo === "solicitud";
   const a = ACENTO[item.tipo];
-  const linkWa = "https://wa.me/57" + soloDigitos(item.contacto);
+  const linkWa = "https://wa.me/57" + soloDigitos(contacto);
+
+  const pedirContacto = async () => {
+    if (pidiendo) return;
+    setPidiendo(true);
+    setErrorContacto("");
+    try {
+      const c = await onPedirContacto(item.id);
+      if (c) {
+        setContacto(c);
+        setVerContacto(true);
+      } else {
+        setErrorContacto("No se pudo obtener el contacto.");
+      }
+    } catch (e) {
+      setErrorContacto(e.message);
+    } finally {
+      setPidiendo(false);
+    }
+  };
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -49,15 +73,26 @@ export default function Tarjeta({ item, compatibles, onEstado, onVerCompatibles,
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-        {!verContacto ? (
+        {contacto && verContacto ? (
+          <a href={linkWa} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
+            <MessageCircle size={14} /> {contacto}
+          </a>
+        ) : contacto ? (
           <button onClick={() => setVerContacto(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
             <Phone size={14} /> Mostrar contacto
           </button>
+        ) : onPedirContacto ? (
+          <button onClick={pedirContacto} disabled={pidiendo} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+            {pidiendo ? <LoaderCircle size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+            Ver contacto
+          </button>
         ) : (
-          <a href={linkWa} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
-            <MessageCircle size={14} /> {item.contacto}
-          </a>
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-500">
+            <ShieldCheck size={13} className="text-slate-400" />
+            Contacto reservado · coordinación hace el enlace
+          </span>
         )}
+        {errorContacto && <span className="text-xs font-medium text-red-600">{errorContacto}</span>}
         <div className="ml-auto flex gap-1">
           {item.estado !== "en_proceso" && <button onClick={() => onEstado(item, "en_proceso")} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">En proceso</button>}
           {item.estado !== "resuelta" && <button onClick={() => onEstado(item, "resuelta")} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50"><Check size={13} /> Resuelta</button>}

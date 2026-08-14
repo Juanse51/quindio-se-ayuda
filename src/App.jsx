@@ -11,6 +11,7 @@ import Arriendos from "./components/Arriendos.jsx";
 import FormArriendo from "./components/FormArriendo.jsx";
 import PanelCoord from "./components/PanelCoord.jsx";
 import Login from "./components/Login.jsx";
+import { AlAparecer } from "./components/ui.jsx";
 
 // Leaflet y sus estilos pesan bastante y la mayoría de visitas no abren el
 // mapa. Se descarga solo cuando alguien entra a esa vista.
@@ -122,6 +123,10 @@ export default function App() {
     setArriendos((p) => p.filter((x) => x.id !== item.id));
   });
 
+  // El teléfono de quien ofrece ayuda no llega con la publicación; coordinación
+  // lo pide de a uno y el servidor comprueba que quien pregunta tenga permiso.
+  const pedirContacto = (id) => store.contactoDe(id);
+
   const entrar = async (correo, clave) => {
     setSesion(await auth.entrar(correo, clave));
     setView("coord");
@@ -202,6 +207,28 @@ export default function App() {
             <span><strong className="text-slate-800">{arriendos.filter((a) => a.estado === "disponible").length}</strong> viviendas en arriendo</span>
           </div>
 
+          <section className="mt-10">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight text-slate-900">Dónde se está necesitando ayuda</h2>
+                <p className="mt-1 text-sm text-slate-500">Cada punto es alguien que compartió su ubicación al publicar.</p>
+              </div>
+              <button
+                onClick={() => setView("mapa")}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-white"
+              >
+                Ver mapa completo
+              </button>
+            </div>
+            <div className="mt-4">
+              <AlAparecer alto={360}>
+                <Suspense fallback={<div className="h-[360px] animate-pulse rounded-xl border border-slate-200 bg-slate-100" />}>
+                  <Mapa solicitudes={solicitudes} ofertas={ofertas} cargando={cargando} onRefrescar={cargar} compacto />
+                </Suspense>
+              </AlAparecer>
+            </div>
+          </section>
+
           {!hayBackend && (
             <div className="mt-10 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
               <p className="flex items-center gap-1.5 font-semibold"><Database size={15} /> Modo local, sin base de datos</p>
@@ -240,7 +267,7 @@ export default function App() {
           onGuardarGuia={guardarGuia} onEliminarGuia={eliminarGuia} onEstado={cambiarEstado}
           onEliminarPub={eliminarPub} onRefrescar={cargar} cargando={cargando}
           onEstadoArriendo={cambiarEstadoArriendo} onEliminarArriendo={eliminarArriendo}
-          sesion={sesion} onSalir={salir}
+          onPedirContacto={pedirContacto} sesion={sesion} onSalir={salir}
         />
       )}
 

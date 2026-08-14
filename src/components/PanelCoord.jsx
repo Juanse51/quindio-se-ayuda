@@ -138,7 +138,7 @@ export default function PanelCoord({
   solicitudes, ofertas, puntos, guiaExtra,
   onImportar, onGuardarPunto, onEliminarPunto, onGuardarGuia, onEliminarGuia,
   onEstado, onEliminarPub, onRefrescar, cargando, sesion, onSalir,
-  arriendos, onEstadoArriendo, onEliminarArriendo,
+  arriendos, onEstadoArriendo, onEliminarArriendo, onPedirContacto,
 }) {
   const [tab, setTab] = useState("data");
   const [csv, setCsv] = useState("");
@@ -262,7 +262,15 @@ export default function PanelCoord({
 
           <div>
             <h3 className="mb-3 font-semibold text-slate-800">Moderar publicaciones</h3>
-            <Tablero solicitudes={solicitudes} ofertas={ofertas} onEstado={onEstado} onRefrescar={onRefrescar} cargando={cargando} filtroInicial={null} modo="coord" onEliminar={onEliminarPub} />
+            <p className="mb-3 text-sm text-slate-500">
+              El teléfono de quien ofrece ayuda no es público. Aquí lo consultas con "Ver contacto"
+              para hacer el enlace con quien lo necesita.
+            </p>
+            <Tablero
+              solicitudes={solicitudes} ofertas={ofertas} onEstado={onEstado}
+              onRefrescar={onRefrescar} cargando={cargando} filtroInicial={null}
+              modo="coord" onEliminar={onEliminarPub} onPedirContacto={onPedirContacto}
+            />
           </div>
         </div>
       )}

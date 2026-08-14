@@ -40,7 +40,7 @@ function Recentrar({ lat, lng, zoom }) {
 
 const conCoordenadas = (it) => typeof it.lat === "number" && typeof it.lng === "number";
 
-export default function Mapa({ solicitudes, ofertas, cargando, onRefrescar }) {
+export default function Mapa({ solicitudes, ofertas, cargando, onRefrescar, compacto }) {
   const [verOfertas, setVerOfertas] = useState(false);
   const [fMun, setFMun] = useState("");
 
@@ -70,14 +70,18 @@ export default function Mapa({ solicitudes, ofertas, cargando, onRefrescar }) {
   const zoom = fMun ? MAPA.zoomMunicipio : MAPA.zoom;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6">
-      <h2 className="text-2xl font-bold tracking-tight text-slate-900">Mapa de necesidades</h2>
-      <p className="mt-1 max-w-2xl text-sm text-slate-500">
-        Dónde se está necesitando ayuda en el Quindío. Cada punto es una publicación de alguien que
-        compartió su ubicación.
-      </p>
+    <div className={compacto ? "" : "mx-auto max-w-5xl px-4 py-6"}>
+      {!compacto && (
+        <>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">Mapa de necesidades</h2>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">
+            Dónde se está necesitando ayuda en el Quindío. Cada punto es una publicación de alguien que
+            compartió su ubicación.
+          </p>
+        </>
+      )}
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className={`flex flex-wrap items-center gap-2 ${compacto ? "" : "mt-4"}`}>
         <Filter size={15} className="text-slate-400" />
         <select
           value={fMun}
@@ -93,13 +97,15 @@ export default function Mapa({ solicitudes, ofertas, cargando, onRefrescar }) {
           <input type="checkbox" checked={verOfertas} onChange={(e) => setVerOfertas(e.target.checked)} />
           Mostrar también ofrecimientos
         </label>
-        <button
-          onClick={onRefrescar}
-          disabled={cargando}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-        >
-          <RefreshCw size={14} className={cargando ? "animate-spin" : ""} /> Actualizar
-        </button>
+        {!compacto && (
+          <button
+            onClick={onRefrescar}
+            disabled={cargando}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={cargando ? "animate-spin" : ""} /> Actualizar
+          </button>
+        )}
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500">
@@ -120,8 +126,10 @@ export default function Mapa({ solicitudes, ofertas, cargando, onRefrescar }) {
         <MapContainer
           center={centro}
           zoom={zoom}
-          scrollWheelZoom
-          style={{ height: "65vh", minHeight: "380px", width: "100%" }}
+          scrollWheelZoom={!compacto}
+          style={compacto
+            ? { height: "360px", width: "100%" }
+            : { height: "65vh", minHeight: "380px", width: "100%" }}
         >
           <TileLayer
             attribution='&copy; colaboradores de <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -144,7 +152,7 @@ export default function Mapa({ solicitudes, ofertas, cargando, onRefrescar }) {
                   <p className="mt-1 text-xs text-slate-400">
                     {it.municipio}{it.sector ? ` · ${it.sector}` : ""} · {hace(it.creado)}
                   </p>
-                  {it.contacto && (
+                  {it.contacto ? (
                     <a
                       href={"https://wa.me/57" + soloDigitos(it.contacto)}
                       target="_blank"
@@ -153,6 +161,10 @@ export default function Mapa({ solicitudes, ofertas, cargando, onRefrescar }) {
                     >
                       <MessageCircle size={12} /> {it.contacto}
                     </a>
+                  ) : (
+                    <p className="mt-2 text-xs text-slate-400">
+                      Contacto reservado · coordinación hace el enlace.
+                    </p>
                   )}
                 </div>
               </Popup>
@@ -165,8 +177,9 @@ export default function Mapa({ solicitudes, ofertas, cargando, onRefrescar }) {
         {marcadores.length === 0 ? (
           <p className="flex items-start gap-2 rounded-lg border border-dashed border-slate-300 p-4">
             <MapPinOff size={16} className="mt-0.5 shrink-0 text-slate-400" />
-            Todavía no hay publicaciones con ubicación en esta zona. El mapa se va llenando a medida
-            que la gente marca "usar mi ubicación" al publicar.
+            {compacto
+              ? "Todavía no hay publicaciones con ubicación."
+              : "Todavía no hay publicaciones con ubicación en esta zona. El mapa se va llenando a medida que la gente marca su ubicación al publicar."}
           </p>
         ) : (
           <p>

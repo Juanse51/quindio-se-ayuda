@@ -281,6 +281,42 @@ let permisosMal = false;
   }
 }
 
+titulo("4. El teléfono de quien ofrece ayuda");
+
+// Lo esencial: la columna `contacto` de la tabla base no debe ser legible.
+{
+  const { error } = await supabase.from("publicaciones").select("contacto").limit(1);
+  if (error) {
+    ok("La columna contacto no es legible directamente");
+  } else {
+    mal("PUEDE leer la columna contacto de la tabla. Los teléfonos están expuestos.");
+    aviso("Revisa la sección 5 de schema.sql: `contacto` no debe estar en el GRANT SELECT.");
+    permisosMal = true;
+  }
+}
+
+// El único camino público al dato es la vista, que lo oculta en las ofertas.
+{
+  const { error } = await supabase.from("publicaciones_publicas").select("id,contacto").limit(1);
+  if (error) {
+    mal(`No se puede leer la vista publicaciones_publicas: ${error.message}`);
+    permisosMal = true;
+  } else {
+    ok("La vista pública responde (devuelve contacto solo en solicitudes)");
+  }
+}
+
+// La función que devuelve el teléfono real no debe estar al alcance de anon.
+{
+  const { error } = await supabase.rpc("contacto_privado", { p_id: ID_INEXISTENTE });
+  if (error) {
+    ok("La función contacto_privado() está cerrada para visitantes");
+  } else {
+    mal("Un visitante anónimo PUEDE llamar a contacto_privado(). Eso está mal.");
+    permisosMal = true;
+  }
+}
+
 // --- Resultado --------------------------------------------------------------
 
 if (permisosMal) {

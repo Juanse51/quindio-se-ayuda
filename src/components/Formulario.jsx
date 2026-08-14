@@ -13,6 +13,7 @@ export default function Formulario({ tipo, onEnviar, onCancelar }) {
   const [enviando, setEnviando] = useState(false);
   const [foto, setFoto] = useState(null);
   const [coords, setCoords] = useState(null);
+  const [autoriza, setAutoriza] = useState(false);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleCat = (k) => setCats((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
 
@@ -22,6 +23,7 @@ export default function Formulario({ tipo, onEnviar, onCancelar }) {
     if (cats.length === 0) return setError("Elige al menos una categoría.");
     if (!f.descripcion.trim()) return setError("Describe brevemente la situación.");
     if (!f.contacto.trim()) return setError("Deja un contacto para que puedan ubicarte.");
+    if (!autoriza) return setError("Falta autorizar el uso de los datos para poder publicar.");
     setError("");
     setEnviando(true);
     try {
@@ -32,6 +34,7 @@ export default function Formulario({ tipo, onEnviar, onCancelar }) {
         sector: f.sector.trim(), cats, descripcion: f.descripcion.trim(),
         urgencia: esPedir ? f.urgencia : "media", contacto: f.contacto.trim(),
         imagen, lat: coords?.lat ?? null, lng: coords?.lng ?? null,
+        consentimiento: true,
         estado: "abierta", creado: Date.now(), origen: "web",
       });
     } catch (e) {
@@ -66,13 +69,13 @@ export default function Formulario({ tipo, onEnviar, onCancelar }) {
           </Campo>
         </div>
 
-        <Campo label="Barrio o sector (opcional)">
-          <input value={f.sector} onChange={(e) => set("sector", e.target.value)} placeholder="Ej: barrio Las Colinas, vereda…" className={inputCls} />
+        <Campo label="Barrio, sector o dirección (opcional)">
+          <input value={f.sector} onChange={(e) => set("sector", e.target.value)} placeholder="Ej: barrio Las Colinas, calle 20 #14-30, vereda…" className={inputCls} />
         </Campo>
 
         <Campo
           label="Ubicación en el mapa (opcional)"
-          hint="Aparecerá como un punto en el mapa público, en el lugar exacto donde estés parado. Úsalo si quieres que te encuentren fácil; si prefieres no marcarlo, el barrio de arriba basta."
+          hint="Aparecerá como un punto en el mapa público. Puedes usar tu ubicación actual, o marcarla a mano si estás publicando desde otro lado o registrando el caso de otra persona."
         >
           <SelectorUbicacion coords={coords} onCoords={setCoords} disabled={enviando} />
         </Campo>
@@ -123,9 +126,38 @@ export default function Formulario({ tipo, onEnviar, onCancelar }) {
           </Campo>
         )}
 
-        <Campo label="Contacto (WhatsApp o teléfono)" req hint="Se mostrará a quien quiera ayudarte. No pongas datos que no quieras hacer públicos.">
+        <Campo
+          label="Contacto (WhatsApp o teléfono)"
+          req
+          hint={esPedir
+            ? "Se mostrará a quien quiera ayudarte. No pongas datos que no quieras hacer públicos."
+            : "Tu teléfono NO se publica. Solo lo ve el equipo de coordinación, que te escribe cuando haya alguien a quien puedas ayudar."}
+        >
           <input value={f.contacto} onChange={(e) => set("contacto", e.target.value)} placeholder="Ej: 300 000 0000" className={inputCls} />
         </Campo>
+
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={autoriza}
+            onChange={(e) => setAutoriza(e.target.checked)}
+            className="mt-0.5 shrink-0"
+          />
+          <span>
+            {esPedir ? (
+              <>
+                Autorizo el uso de estos datos para gestionar esta ayuda y que la publicación sea
+                visible en la plataforma. Si estoy publicando por otra persona, confirmo que ella lo
+                autorizó.
+              </>
+            ) : (
+              <>
+                Autorizo el uso de estos datos para gestionar esta ayuda. Entiendo que mi teléfono no
+                será público y que el equipo de coordinación lo usará para contactarme.
+              </>
+            )}
+          </span>
+        </label>
 
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
 
