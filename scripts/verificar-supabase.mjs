@@ -116,13 +116,16 @@ const supabase = createClient(url, llave);
 
 titulo("2. Tablas del esquema");
 
-const TABLAS = ["publicaciones", "puntos", "guia"];
+const TABLAS = ["publicaciones", "puntos", "guia", "arriendos"];
 let faltanTablas = false;
 
 for (const tabla of TABLAS) {
+  // GET de verdad, no HEAD: una respuesta sin cuerpo deja al cliente sin el
+  // JSON del error, y una tabla inexistente pasaría por buena.
   const { count, error } = await supabase
     .from(tabla)
-    .select("*", { count: "exact", head: true });
+    .select("id", { count: "exact" })
+    .limit(1);
 
   if (error) {
     if (error.code === "42P01" || error.code === "PGRST205") {
@@ -142,8 +145,9 @@ for (const tabla of TABLAS) {
 
 if (faltanTablas) {
   salir(
-    "Falta ejecutar el esquema.\n" +
-      "Supabase → SQL Editor → New query → pega supabase/schema.sql → Run."
+    "Falta ejecutar el esquema, o la base quedó de una versión anterior.\n" +
+      "Supabase → SQL Editor → New query → pega supabase/schema.sql → Run.\n" +
+      "Se puede re-ejecutar sin perder datos."
   );
 }
 
@@ -153,6 +157,40 @@ if (errRpc) {
   faltanTablas = true;
 } else {
   ok("Función es_coordinador() disponible");
+}
+
+// Columnas de la Fase 3. Una base creada antes no las tiene hasta re-ejecutar
+// el esquema, y sin ellas fallan el mapa y las fotos.
+{
+  const { error } = await supabase.from("publicaciones").select("imagen,lat,lng").limit(1);
+  if (error) {
+    mal("Faltan las columnas imagen/lat/lng en publicaciones");
+    faltanTablas = true;
+  } else {
+    ok("Columnas de foto y ubicación presentes");
+  }
+}
+
+if (faltanTablas) {
+  salir(
+    "El esquema está incompleto o desactualizado.\n" +
+      "Supabase → SQL Editor → New query → pega supabase/schema.sql → Run.\n" +
+      "Se puede re-ejecutar sin perder datos."
+  );
+}
+
+titulo("2b. Almacenamiento de imágenes");
+
+{
+  const { error } = await supabase.storage.from("imagenes").list("", { limit: 1 });
+  if (error) {
+    mal(`Bucket "imagenes": ${error.message}`);
+    salir(
+      "Falta el bucket de imágenes.\n" +
+        "Está en la sección 5b de supabase/schema.sql; vuelve a ejecutar el archivo."
+    );
+  }
+  ok('Bucket "imagenes" accesible');
 }
 
 // --- 3. Permisos ------------------------------------------------------------
@@ -215,6 +253,30 @@ let permisosMal = false;
   } else {
     mal("PUEDE agregar puntos al directorio sin ser coordinación. Eso está mal.");
     await supabase.from("puntos").delete().eq("id", ID_INEXISTENTE);
+    permisosMal = true;
+  }
+}
+
+// Los arriendos siguen la misma regla que las publicaciones.
+{
+  const { error } = await supabase
+    .from("arriendos")
+    .update({ precio: 1, contacto: "prueba" })
+    .eq("id", ID_INEXISTENTE);
+  if (error) {
+    ok("No puede reescribir el precio ni el contacto de un arriendo ajeno");
+  } else {
+    mal("PUEDE reescribir arriendos ajenos. Eso está mal.");
+    permisosMal = true;
+  }
+}
+
+{
+  const { error } = await supabase.from("arriendos").delete().eq("id", ID_INEXISTENTE);
+  if (error) {
+    ok("No puede borrar arriendos");
+  } else {
+    mal("PUEDE borrar arriendos. Eso está mal.");
     permisosMal = true;
   }
 }

@@ -27,6 +27,7 @@ const TABLAS = {
   "ofr:": { tabla: "publicaciones", filtro: { tipo: "oferta" }, upsert: false },
   "aco:": { tabla: "puntos", filtro: null, upsert: true },
   "gui:": { tabla: "guia", filtro: null, upsert: true },
+  "arr:": { tabla: "arriendos", filtro: null, upsert: false },
 };
 
 const destino = (prefijo) => {
@@ -40,12 +41,14 @@ const destino = (prefijo) => {
 const aFila = {
   publicaciones: (o) => o,
   guia: (o) => o,
+  arriendos: (o) => o,
   puntos: ({ tipoPunto, ...resto }) => ({ ...resto, tipo_punto: tipoPunto }),
 };
 
 const aObjeto = {
   publicaciones: (r) => r,
   guia: (r) => r,
+  arriendos: (r) => r,
   puntos: ({ tipo_punto, ...resto }) => ({ ...resto, tipoPunto: tipo_punto }),
 };
 

@@ -28,6 +28,9 @@ create table if not exists public.publicaciones (
   urgencia    text   not null default 'media'   check (urgencia in ('alta', 'media', 'baja')),
   contacto    text   not null default ''        check (char_length(contacto) <= 120),
   estado      text   not null default 'abierta' check (estado in ('abierta', 'en_proceso', 'resuelta')),
+  imagen      text,              -- ruta dentro del bucket `imagenes`, o null
+  lat         double precision,  -- ubicación exacta, opcional
+  lng         double precision,
   creado      bigint not null,   -- epoch en milisegundos (Date.now())
   origen      text   not null default 'web' check (origen in ('web', 'importado', 'whatsapp'))
 );
@@ -56,12 +59,59 @@ create table if not exists public.guia (
   creado bigint not null
 );
 
+-- Clasificados de vivienda: casas y apartamentos disponibles en arriendo.
+-- Solo ofertas; quien busca, filtra. No hay publicaciones de "busco arriendo".
+create table if not exists public.arriendos (
+  id           text     primary key,
+  tipo         text     not null default 'apartamento'
+                        check (tipo in ('casa', 'apartamento', 'habitacion', 'finca')),
+  nombre       text     not null default 'Anónimo' check (char_length(nombre) <= 120),
+  municipio    text     not null check (char_length(municipio) <= 80),
+  sector       text     not null default '' check (char_length(sector) <= 160),
+  habitaciones smallint not null default 1 check (habitaciones between 0 and 20),
+  banos        smallint not null default 1 check (banos between 0 and 20),
+  precio       integer  check (precio is null or precio between 0 and 100000000),
+  amoblado     boolean  not null default false,
+  descripcion  text     not null default '' check (char_length(descripcion) <= 2000),
+  contacto     text     not null default '' check (char_length(contacto) <= 120),
+  imagen       text,
+  estado       text     not null default 'disponible'
+                        check (estado in ('disponible', 'arrendado')),
+  creado       bigint   not null,
+  origen       text     not null default 'web' check (origen in ('web', 'importado', 'whatsapp'))
+);
+
 -- Quién puede moderar. Se llena a mano desde el dashboard (ver README).
 create table if not exists public.coordinadores (
   user_id uuid primary key references auth.users (id) on delete cascade,
   nombre  text not null default '',
   creado  timestamptz not null default now()
 );
+
+
+-- ---------------------------------------------------------------------------
+-- 1b. Ajustes para bases creadas antes de la Fase 3
+--
+-- `create table if not exists` no toca una tabla que ya existe, así que las
+-- columnas nuevas se agregan aparte. Si la base es nueva, esto no hace nada.
+-- ---------------------------------------------------------------------------
+
+alter table public.publicaciones add column if not exists imagen text;
+alter table public.publicaciones add column if not exists lat double precision;
+alter table public.publicaciones add column if not exists lng double precision;
+
+-- Postgres no tiene `add constraint if not exists`, de ahí el rodeo.
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'publicaciones_lat_valida') then
+    alter table public.publicaciones add constraint publicaciones_lat_valida
+      check (lat is null or lat between -90 and 90);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'publicaciones_lng_valida') then
+    alter table public.publicaciones add constraint publicaciones_lng_valida
+      check (lng is null or lng between -180 and 180);
+  end if;
+end $$;
 
 
 -- ---------------------------------------------------------------------------
@@ -74,6 +124,12 @@ create index if not exists publicaciones_estado_idx      on public.publicaciones
 create index if not exists puntos_municipio_idx          on public.puntos (municipio);
 create index if not exists puntos_creado_idx             on public.puntos (creado desc);
 create index if not exists guia_creado_idx               on public.guia (creado desc);
+create index if not exists arriendos_creado_idx          on public.arriendos (creado desc);
+create index if not exists arriendos_municipio_idx       on public.arriendos (municipio);
+
+-- El mapa solo pide las filas que tienen coordenadas.
+create index if not exists publicaciones_geo_idx
+  on public.publicaciones (lat, lng) where lat is not null;
 
 
 -- ---------------------------------------------------------------------------
@@ -107,6 +163,7 @@ grant execute on function public.es_coordinador() to anon, authenticated;
 alter table public.publicaciones  enable row level security;
 alter table public.puntos         enable row level security;
 alter table public.guia           enable row level security;
+alter table public.arriendos      enable row level security;
 alter table public.coordinadores  enable row level security;
 
 -- Se borran antes de crear para poder re-ejecutar el archivo entero.
@@ -157,6 +214,27 @@ create policy guia_escritura on public.guia
   for all to authenticated using (public.es_coordinador()) with check (public.es_coordinador());
 
 
+-- Arriendos: mismo trato que las publicaciones. Cualquiera ofrece una vivienda
+-- y puede marcarla como arrendada; borrar es de coordinación.
+drop policy if exists arriendos_lectura       on public.arriendos;
+drop policy if exists arriendos_insercion     on public.arriendos;
+drop policy if exists arriendos_actualizacion on public.arriendos;
+drop policy if exists arriendos_borrado       on public.arriendos;
+
+create policy arriendos_lectura on public.arriendos
+  for select to anon, authenticated using (true);
+
+create policy arriendos_insercion on public.arriendos
+  for insert to anon, authenticated
+  with check (estado = 'disponible' and origen in ('web', 'importado'));
+
+create policy arriendos_actualizacion on public.arriendos
+  for update to anon, authenticated using (true) with check (true);
+
+create policy arriendos_borrado on public.arriendos
+  for delete to authenticated using (public.es_coordinador());
+
+
 -- Cada quien solo ve su propia fila; nadie se puede agregar a sí mismo.
 drop policy if exists coordinadores_propia_fila on public.coordinadores;
 
@@ -185,8 +263,46 @@ revoke all on public.guia from anon, authenticated;
 grant select                      on public.guia to anon, authenticated;
 grant insert, update, delete      on public.guia to authenticated;
 
+revoke all on public.arriendos from anon, authenticated;
+grant select, insert          on public.arriendos to anon, authenticated;
+grant update (estado)         on public.arriendos to anon, authenticated;
+grant delete                  on public.arriendos to authenticated;
+
 revoke all on public.coordinadores from anon, authenticated;
 grant select on public.coordinadores to authenticated;
+
+
+-- ---------------------------------------------------------------------------
+-- 5b. Almacenamiento de imágenes
+--
+-- Un bucket público: las fotos se ven sin autenticarse, igual que el resto del
+-- tablero. El límite de 3 MB es la última barrera —el navegador ya redimensiona
+-- y comprime antes de subir— y la lista de tipos evita que se suban archivos
+-- que no son imágenes.
+-- ---------------------------------------------------------------------------
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('imagenes', 'imagenes', true, 3145728,
+        array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+  set public            = excluded.public,
+      file_size_limit   = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists imagenes_lectura on storage.objects;
+drop policy if exists imagenes_subida  on storage.objects;
+drop policy if exists imagenes_borrado on storage.objects;
+
+create policy imagenes_lectura on storage.objects
+  for select to anon, authenticated using (bucket_id = 'imagenes');
+
+create policy imagenes_subida on storage.objects
+  for insert to anon, authenticated with check (bucket_id = 'imagenes');
+
+-- Nadie puede borrar ni reemplazar la foto de otra persona; solo coordinación.
+create policy imagenes_borrado on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'imagenes' and public.es_coordinador());
 
 
 -- ---------------------------------------------------------------------------

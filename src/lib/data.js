@@ -52,6 +52,50 @@ export const ACENTO = {
 export const inputCls =
   "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500";
 
+// --- Mapa -------------------------------------------------------------------
+
+// El Quindío es pequeño: cabe entero en un zoom 10 desde el centro.
+export const MAPA = {
+  centro: [4.53, -75.68],
+  zoom: 10,
+  zoomMunicipio: 13,
+};
+
+// Cabecera de cada municipio, para centrar el mapa cuando se filtra por uno.
+export const COORD_MUNICIPIOS = {
+  Armenia:     [4.5339, -75.6811],
+  Buenavista:  [4.3592, -75.7386],
+  Calarcá:     [4.5250, -75.6444],
+  Circasia:    [4.6167, -75.6361],
+  Córdoba:     [4.3922, -75.6875],
+  Filandia:    [4.6747, -75.6603],
+  Génova:      [4.2064, -75.7897],
+  "La Tebaida":[4.4517, -75.7861],
+  Montenegro:  [4.5644, -75.7494],
+  Pijao:       [4.3336, -75.7042],
+  Quimbaya:    [4.6244, -75.7642],
+  Salento:     [4.6375, -75.5706],
+};
+
+// --- Arriendos (M4 vivienda) ------------------------------------------------
+
+export const ARRIENDO_TIPOS = {
+  apartamento: { label: "Apartamento" },
+  casa:        { label: "Casa" },
+  habitacion:  { label: "Habitación" },
+  finca:       { label: "Finca" },
+};
+
+export const ESTADOS_ARRIENDO = {
+  disponible: { label: "Disponible", chip: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  arrendado:  { label: "Ya arrendado", chip: "bg-slate-100 text-slate-600 border-slate-200" },
+};
+
+export const precioCOP = (n) =>
+  typeof n === "number" && n > 0
+    ? n.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 })
+    : "Precio a convenir";
+
 // Clave del panel para el modo local (sin Supabase configurado). Cuando hay
 // base de datos, el acceso es con correo y contraseña reales y esta clave no se
 // usa. Ver src/lib/auth.js.

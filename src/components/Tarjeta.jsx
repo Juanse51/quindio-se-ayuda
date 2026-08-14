@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Phone, MapPin, Clock, User, HandHeart, ChevronRight, Check, Trash2, MessageCircle } from "lucide-react";
 import { ACENTO, URGENCIAS, ESTADOS, soloDigitos, hace } from "../lib/data.js";
+import { urlImagen } from "../lib/imagenes.js";
 import { Chip, CatChip } from "./ui.jsx";
 
 export default function Tarjeta({ item, compatibles, onEstado, onVerCompatibles, onEliminar }) {
@@ -29,6 +30,16 @@ export default function Tarjeta({ item, compatibles, onEstado, onVerCompatibles,
       </div>
 
       <p className="mt-3 text-sm leading-relaxed text-slate-700">{item.descripcion}</p>
+
+      {item.imagen && (
+        <img
+          src={urlImagen(item.imagen)}
+          alt={`Foto de la publicación de ${item.nombre}`}
+          loading="lazy"
+          className="mt-3 max-h-56 w-full rounded-lg border border-slate-200 object-cover"
+        />
+      )}
+
       <div className="mt-3 flex items-center gap-1 text-sm text-slate-500"><User size={13} /> {item.nombre}</div>
 
       {esSol && compatibles > 0 && item.estado === "abierta" && (

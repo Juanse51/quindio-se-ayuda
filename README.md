@@ -107,11 +107,13 @@ Para quitar el acceso, basta con borrar su fila de `coordinadores`.
 
 | | Visitante | Coordinación |
 |---|---|---|
-| Ver tablero, directorio y asesoría | ✅ | ✅ |
-| Publicar solicitud u ofrecimiento | ✅ | ✅ |
-| Marcar "en proceso" / "resuelta" | ✅ | ✅ |
+| Ver tablero, mapa, directorio, arriendos y asesoría | ✅ | ✅ |
+| Publicar solicitud, ofrecimiento o arriendo | ✅ | ✅ |
+| Subir una foto | ✅ | ✅ |
+| Marcar "en proceso" / "resuelta" / "arrendado" | ✅ | ✅ |
 | Editar el texto o el contacto de una publicación ajena | ❌ | ❌ |
-| Borrar publicaciones | ❌ | ✅ |
+| Borrar publicaciones y arriendos | ❌ | ✅ |
+| Borrar imágenes del bucket | ❌ | ✅ |
 | Administrar directorio y asesoría | ❌ | ✅ |
 | Importar CSV | ❌ | ✅ |
 

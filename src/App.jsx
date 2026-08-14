@@ -1,15 +1,20 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { AlertTriangle, Heart, Building2, BookOpen, HandHeart, Lock, Database, X } from "lucide-react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
+import { AlertTriangle, Heart, Building2, BookOpen, HandHeart, Lock, Database, X, Map, Home } from "lucide-react";
 import { store } from "./lib/storage.js";
 import { auth } from "./lib/auth.js";
 import { hayBackend } from "./lib/supabase.js";
-import { BannerEmergencia } from "./components/ui.jsx";
 import Formulario from "./components/Formulario.jsx";
 import Tablero from "./components/Tablero.jsx";
 import Directorio from "./components/Directorio.jsx";
 import Asesoria from "./components/Asesoria.jsx";
+import Arriendos from "./components/Arriendos.jsx";
+import FormArriendo from "./components/FormArriendo.jsx";
 import PanelCoord from "./components/PanelCoord.jsx";
 import Login from "./components/Login.jsx";
+
+// Leaflet y sus estilos pesan bastante y la mayoría de visitas no abren el
+// mapa. Se descarga solo cuando alguien entra a esa vista.
+const Mapa = React.lazy(() => import("./components/Mapa.jsx"));
 
 export default function App() {
   const [view, setView] = useState("inicio");
@@ -17,6 +22,7 @@ export default function App() {
   const [ofertas, setOfertas] = useState([]);
   const [puntos, setPuntos] = useState([]);
   const [guiaExtra, setGuiaExtra] = useState([]);
+  const [arriendos, setArriendos] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [filtroInicial, setFiltroInicial] = useState(null);
   const [sesion, setSesion] = useState(null);
@@ -25,10 +31,11 @@ export default function App() {
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
-      const [s, o, p, g] = await Promise.all([
-        store.listar("sol:"), store.listar("ofr:"), store.listar("aco:"), store.listar("gui:"),
+      const [s, o, p, g, a] = await Promise.all([
+        store.listar("sol:"), store.listar("ofr:"), store.listar("aco:"),
+        store.listar("gui:"), store.listar("arr:"),
       ]);
-      setSolicitudes(s); setOfertas(o); setPuntos(p); setGuiaExtra(g);
+      setSolicitudes(s); setOfertas(o); setPuntos(p); setGuiaExtra(g); setArriendos(a);
       setErrorApp("");
     } catch (e) {
       setErrorApp(e.message);
@@ -66,13 +73,19 @@ export default function App() {
   const prefijoDe = (item) => (item.tipo === "solicitud" ? "sol:" : "ofr:");
   const setterDe = (item) => (item.tipo === "solicitud" ? setSolicitudes : setOfertas);
 
-  // Estas cuatro propagan el error a propósito: quien las llama tiene su propia
-  // forma de mostrarlo (el formulario, el importador, los editores del panel).
+  // Estas propagan el error a propósito: quien las llama tiene su propia forma
+  // de mostrarlo (el formulario, el importador, los editores del panel).
   const publicar = async (item) => {
     await store.guardar(prefijoDe(item), item);
     setterDe(item)((p) => [item, ...p]);
     setFiltroInicial({ pestana: item.tipo, municipio: item.municipio });
     setView("tablero");
+  };
+
+  const publicarArriendo = async (item) => {
+    await store.guardar("arr:", item);
+    setArriendos((p) => [item, ...p]);
+    setView("arriendos");
   };
 
   const importar = async (filas) => {
@@ -99,6 +112,16 @@ export default function App() {
     setterDe(item)((p) => p.filter((x) => x.id !== item.id));
   });
 
+  const cambiarEstadoArriendo = (item, estado) => conAviso(async () => {
+    await store.actualizarEstado("arr:", item.id, estado);
+    setArriendos((p) => p.map((x) => (x.id === item.id ? { ...x, estado } : x)));
+  });
+
+  const eliminarArriendo = (item) => conAviso(async () => {
+    await store.eliminar("arr:", item.id);
+    setArriendos((p) => p.filter((x) => x.id !== item.id));
+  });
+
   const entrar = async (correo, clave) => {
     setSesion(await auth.entrar(correo, clave));
     setView("coord");
@@ -110,13 +133,23 @@ export default function App() {
     setView("inicio");
   };
 
-  const nav = [["tablero", "Tablero"], ["directorio", "Directorio"], ["asesoria", "Asesoría"]];
+  const nav = [
+    ["tablero", "Tablero"], ["mapa", "Mapa"], ["directorio", "Directorio"],
+    ["arriendos", "Arriendos"], ["asesoria", "Asesoría"],
+  ];
   const irCoord = () => setView(sesion?.coordinador ? "coord" : "login");
+
+  const atajos = [
+    { v: "pedir", Icon: AlertTriangle, titulo: "Necesito ayuda", sub: "Agua, alimentos, refugio, medicinas…", caja: "border-blue-200 bg-blue-50 hover:border-blue-400", icono: "bg-blue-600", texto: "text-blue-900", subTexto: "text-blue-800/80" },
+    { v: "ofrecer", Icon: Heart, titulo: "Puedo ayudar", sub: "Ofrece insumos, transporte o tu tiempo.", caja: "border-emerald-200 bg-emerald-50 hover:border-emerald-400", icono: "bg-emerald-600", texto: "text-emerald-900", subTexto: "text-emerald-800/80" },
+    { v: "mapa", Icon: Map, titulo: "Mapa de necesidades", sub: "Dónde se está pidiendo ayuda.", caja: "border-slate-200 bg-white hover:border-slate-400", icono: "bg-rose-500", texto: "text-slate-900", subTexto: "text-slate-500" },
+    { v: "directorio", Icon: Building2, titulo: "Dónde llevar cosas", sub: "Acopios y quién está recogiendo.", caja: "border-slate-200 bg-white hover:border-slate-400", icono: "bg-slate-700", texto: "text-slate-900", subTexto: "text-slate-500" },
+    { v: "arriendos", Icon: Home, titulo: "Arriendos", sub: "Casas y apartamentos disponibles.", caja: "border-slate-200 bg-white hover:border-slate-400", icono: "bg-violet-600", texto: "text-slate-900", subTexto: "text-slate-500" },
+    { v: "asesoria", Icon: BookOpen, titulo: "Asesoría", sub: "Qué hacer y a quién acudir.", caja: "border-slate-200 bg-white hover:border-slate-400", icono: "bg-amber-500", texto: "text-slate-900", subTexto: "text-slate-500" },
+  ];
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <BannerEmergencia />
-
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-3">
           <button onClick={() => setView("inicio")} className="flex items-center gap-2 text-left">
@@ -152,33 +185,21 @@ export default function App() {
             <p className="mt-3 text-base leading-relaxed text-slate-600">Una red vecinal para el Quindío tras el sismo del 10 de agosto. Publica lo que necesitas o lo que puedes ofrecer, encuentra dónde llevar donaciones y consulta la guía de qué hacer.</p>
           </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <button onClick={() => setView("pedir")} className="group rounded-2xl border border-blue-200 bg-blue-50 p-5 text-left transition hover:border-blue-400 hover:shadow-md">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white"><AlertTriangle size={22} /></div>
-              <h2 className="mt-4 text-lg font-semibold text-blue-900">Necesito ayuda</h2>
-              <p className="mt-1 text-sm text-blue-800/80">Agua, alimentos, refugio, medicinas…</p>
-            </button>
-            <button onClick={() => setView("ofrecer")} className="group rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-left transition hover:border-emerald-400 hover:shadow-md">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white"><Heart size={22} /></div>
-              <h2 className="mt-4 text-lg font-semibold text-emerald-900">Puedo ayudar</h2>
-              <p className="mt-1 text-sm text-emerald-800/80">Ofrece insumos, transporte o tu tiempo.</p>
-            </button>
-            <button onClick={() => setView("directorio")} className="group rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:border-slate-400 hover:shadow-md">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-700 text-white"><Building2 size={22} /></div>
-              <h2 className="mt-4 text-lg font-semibold text-slate-900">Dónde llevar cosas</h2>
-              <p className="mt-1 text-sm text-slate-500">Acopios y quién está recogiendo.</p>
-            </button>
-            <button onClick={() => setView("asesoria")} className="group rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:border-slate-400 hover:shadow-md">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500 text-white"><BookOpen size={22} /></div>
-              <h2 className="mt-4 text-lg font-semibold text-slate-900">Asesoría</h2>
-              <p className="mt-1 text-sm text-slate-500">Qué hacer y a quién acudir.</p>
-            </button>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {atajos.map(({ v, Icon, titulo, sub, caja, icono, texto, subTexto }) => (
+              <button key={v} onClick={() => setView(v)} className={`group rounded-2xl border p-5 text-left transition hover:shadow-md ${caja}`}>
+                <div className={`flex h-11 w-11 items-center justify-center rounded-xl text-white ${icono}`}><Icon size={22} /></div>
+                <h2 className={`mt-4 text-lg font-semibold ${texto}`}>{titulo}</h2>
+                <p className={`mt-1 text-sm ${subTexto}`}>{sub}</p>
+              </button>
+            ))}
           </div>
 
           <div className="mt-6 flex flex-wrap gap-4 text-sm text-slate-500">
             <span><strong className="text-slate-800">{solicitudes.filter((s) => s.estado === "abierta").length}</strong> solicitudes abiertas</span>
             <span><strong className="text-slate-800">{ofertas.filter((o) => o.estado === "abierta").length}</strong> ofrecimientos activos</span>
             <span><strong className="text-slate-800">{puntos.length}</strong> puntos en el directorio</span>
+            <span><strong className="text-slate-800">{arriendos.filter((a) => a.estado === "disponible").length}</strong> viviendas en arriendo</span>
           </div>
 
           {!hayBackend && (
@@ -195,20 +216,42 @@ export default function App() {
       {view === "tablero" && <Tablero solicitudes={solicitudes} ofertas={ofertas} onEstado={cambiarEstado} onRefrescar={cargar} cargando={cargando} filtroInicial={filtroInicial} />}
       {view === "directorio" && <Directorio puntos={puntos} cargando={cargando} onRefrescar={cargar} />}
       {view === "asesoria" && <Asesoria extra={guiaExtra} />}
+      {view === "publicarArriendo" && <FormArriendo onEnviar={publicarArriendo} onCancelar={() => setView("arriendos")} />}
       {view === "login" && <Login onEntrar={entrar} />}
+
+      {view === "arriendos" && (
+        <Arriendos
+          arriendos={arriendos} cargando={cargando} onRefrescar={cargar}
+          onPublicar={() => setView("publicarArriendo")}
+          onEstado={cambiarEstadoArriendo} onEliminar={eliminarArriendo}
+        />
+      )}
+
+      {view === "mapa" && (
+        <Suspense fallback={<p className="mx-auto max-w-5xl px-4 py-20 text-center text-sm text-slate-500">Cargando el mapa…</p>}>
+          <Mapa solicitudes={solicitudes} ofertas={ofertas} cargando={cargando} onRefrescar={cargar} />
+        </Suspense>
+      )}
 
       {view === "coord" && sesion?.coordinador && (
         <PanelCoord
-          solicitudes={solicitudes} ofertas={ofertas} puntos={puntos} guiaExtra={guiaExtra}
+          solicitudes={solicitudes} ofertas={ofertas} puntos={puntos} guiaExtra={guiaExtra} arriendos={arriendos}
           onImportar={importar} onGuardarPunto={guardarPunto} onEliminarPunto={eliminarPunto}
           onGuardarGuia={guardarGuia} onEliminarGuia={eliminarGuia} onEstado={cambiarEstado}
           onEliminarPub={eliminarPub} onRefrescar={cargar} cargando={cargando}
+          onEstadoArriendo={cambiarEstadoArriendo} onEliminarArriendo={eliminarArriendo}
           sesion={sesion} onSalir={salir}
         />
       )}
 
       <footer className="mt-10 border-t border-slate-200 py-6 text-center text-xs text-slate-400">
-        Quindío Se Ayuda · Herramienta comunitaria sin ánimo de lucro · Emergencias vitales: 123
+        <p>Quindío Se Ayuda · Herramienta comunitaria sin ánimo de lucro · Emergencias: 123</p>
+        <p className="mt-1">
+          Sitio creado por{" "}
+          <a href="https://vamosarayar.com" target="_blank" rel="noreferrer" className="font-semibold text-slate-500 underline underline-offset-2 hover:text-slate-800">
+            Rayar!
+          </a>
+        </p>
       </footer>
     </div>
   );

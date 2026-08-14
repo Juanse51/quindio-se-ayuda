@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import Papa from "papaparse";
-import { Lock, Upload, Check, List, Building2, BookOpen, Plus, Trash2, LogOut } from "lucide-react";
+import { Lock, Upload, Check, List, Building2, BookOpen, Plus, Trash2, LogOut, Home } from "lucide-react";
 import { CATEGORIAS, MUNICIPIOS, inputCls, uid } from "../lib/data.js";
 import Tablero from "./Tablero.jsx";
+import Arriendos from "./Arriendos.jsx";
 
 const PLANTILLA =
   "tipo,nombre,municipio,sector,categorias,descripcion,urgencia,contacto\n" +
@@ -137,6 +138,7 @@ export default function PanelCoord({
   solicitudes, ofertas, puntos, guiaExtra,
   onImportar, onGuardarPunto, onEliminarPunto, onGuardarGuia, onEliminarGuia,
   onEstado, onEliminarPub, onRefrescar, cargando, sesion, onSalir,
+  arriendos, onEstadoArriendo, onEliminarArriendo,
 }) {
   const [tab, setTab] = useState("data");
   const [csv, setCsv] = useState("");
@@ -189,7 +191,10 @@ export default function PanelCoord({
     }
   };
 
-  const tabs = [["data", "Datos", List], ["dir", "Directorio", Building2], ["guia", "Asesoría", BookOpen]];
+  const tabs = [
+    ["data", "Datos", List], ["dir", "Directorio", Building2],
+    ["guia", "Asesoría", BookOpen], ["arr", "Arriendos", Home],
+  ];
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
@@ -264,6 +269,12 @@ export default function PanelCoord({
 
       {tab === "dir" && <EditorDirectorio puntos={puntos} onGuardar={onGuardarPunto} onEliminar={onEliminarPunto} />}
       {tab === "guia" && <EditorGuia items={guiaExtra} onGuardar={onGuardarGuia} onEliminar={onEliminarGuia} />}
+      {tab === "arr" && (
+        <Arriendos
+          arriendos={arriendos} cargando={cargando} onRefrescar={onRefrescar}
+          onEstado={onEstadoArriendo} onEliminar={onEliminarArriendo} modo="coord"
+        />
+      )}
     </div>
   );
 }
