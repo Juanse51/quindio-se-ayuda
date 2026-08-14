@@ -333,7 +333,10 @@ as $$
   end;
 $$;
 
-revoke all on function public.contacto_privado(text) from public;
+-- `anon` va nombrado aparte: Supabase concede EXECUTE a anon y authenticated en
+-- cada función nueva mediante default privileges, y revocar sobre `public` no
+-- toca esas concesiones explícitas.
+revoke all on function public.contacto_privado(text) from public, anon;
 grant execute on function public.contacto_privado(text) to authenticated;
 
 
